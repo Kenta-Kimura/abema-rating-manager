@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ABEMAトーナメント レーティング管理</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div>
+          <p class="eyebrow">ABEMAトーナメント</p>
+          <h1>レーティング</h1>
+        </div>
+        <nav aria-label="メイン">
+          <button class="nav-button active" data-view="dashboard" title="ダッシュボード">概要</button>
+          <button class="nav-button" data-view="tournaments" title="大会別">大会</button>
+          <button class="nav-button" data-view="matches" title="試合一覧">試合</button>
+          <button class="nav-button" data-view="players" title="棋士別">棋士</button>
+          <button class="nav-button" data-view="import" title="追加">追加</button>
+          <button class="nav-button" data-view="settings" title="設定">設定</button>
+        </nav>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <h2 id="viewTitle">概要</h2>
+          </div>
+          <div class="toolbar">
+            <label class="search">
+              <span>検索</span>
+              <input id="searchInput" type="search" placeholder="棋士・大会・チーム" />
+            </label>
+            <button id="exportJsonButton" class="icon-button" title="JSONを書き出し">JSON</button>
+            <button id="exportCsvButton" class="icon-button" title="CSVを書き出し">CSV</button>
+          </div>
+        </header>
+
+        <section id="dashboardView" class="view active-view">
+          <div class="kpi-grid">
+            <article class="kpi"><span>登録試合</span><strong id="matchCount">0</strong></article>
+            <article class="kpi"><span>登録棋士</span><strong id="playerCount">0</strong></article>
+            <article class="kpi"><span>最高レーティング</span><strong id="topRating">-</strong></article>
+            <article class="kpi"><span>平均レーティング</span><strong id="avgRating">-</strong></article>
+          </div>
+          <div class="single">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>ランキング</h3>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>#</th><th data-sort="name">棋士</th><th data-sort="rating">レーティング</th><th data-sort="record">勝敗無</th><th data-sort="winRate">勝率</th><th data-sort="lastDelta">直近変動</th></tr>
+                  </thead>
+                  <tbody id="rankingBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="tournamentsView" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>大会別順位</h3>
+              <select id="tournamentSelect"></select>
+            </div>
+            <div id="tournamentSummary" class="detail-grid"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>#</th><th data-sort="name">棋士</th><th data-sort="start">開始レーティング</th><th data-sort="end">終了レーティング</th><th data-sort="delta">変動</th><th data-sort="record">勝敗無</th><th data-sort="winRate">勝率</th></tr>
+                </thead>
+                <tbody id="tournamentBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>大会内対局</h3>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th data-sort="matchup">対局</th><th data-sort="score">スコア</th><th data-sort="delta">レーティング変動</th><th data-sort="stage">区分</th></tr>
+                </thead>
+                <tbody id="tournamentMatchesBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>リーグ・チーム別レーティング</h3>
+            </div>
+            <div class="split">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th data-sort="name">リーグ</th><th data-sort="average">平均レーティング</th><th data-sort="count">人数</th><th>棋士</th></tr>
+                  </thead>
+                  <tbody id="leagueRatingBody"></tbody>
+                </table>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th data-sort="name">チーム</th><th data-sort="league">リーグ</th><th data-sort="average">平均レーティング</th><th data-sort="count">人数</th><th>棋士</th></tr>
+                  </thead>
+                  <tbody id="teamRatingBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section id="matchesView" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>試合を追加</h3>
+              <button id="addMatchButton" class="primary">追加</button>
+              <button id="cancelEditButton" type="button" hidden>キャンセル</button>
+            </div>
+            <form id="matchForm" class="match-form">
+              <input name="date" type="date" />
+              <input name="tournament" list="tournamentOptions" placeholder="大会・年度 例: 2025" />
+              <input name="stage" placeholder="回戦・局 例: 予選第1試合" />
+              <input name="teamA" list="teamOptions" placeholder="チームA" />
+              <input name="playerA" list="playerOptions" required placeholder="棋士A" />
+              <input name="teamB" list="teamOptions" placeholder="チームB" />
+              <input name="playerB" list="playerOptions" required placeholder="棋士B" />
+              <fieldset class="choice-group">
+                <legend>先手</legend>
+                <label><input type="radio" name="sente" value="" checked /> 未設定</label>
+                <label><input type="radio" name="sente" value="A" /> 棋士A</label>
+                <label><input type="radio" name="sente" value="B" /> 棋士B</label>
+              </fieldset>
+              <fieldset class="choice-group result-choice">
+                <legend>結果</legend>
+                <label><input type="radio" name="winner" value="A" required /> A勝ち</label>
+                <label><input type="radio" name="winner" value="B" /> B勝ち</label>
+                <label><input type="radio" name="winner" value="D" /> 引分・無勝敗</label>
+              </fieldset>
+            </form>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>試合履歴</h3>
+              <button id="clearMatchesButton" class="danger">全削除...</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th data-sort="date">日付</th><th data-sort="tournament">大会</th><th data-sort="matchup">対局</th><th data-sort="expected">期待勝率</th><th data-sort="delta">レーティング変動</th><th></th></tr>
+                </thead>
+                <tbody id="matchesBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section id="playersView" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>棋士別成績</h3>
+              <input id="playerDetailSelect" list="playerOptions" placeholder="棋士を選択" />
+            </div>
+            <div id="playerDetail" class="player-detail"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>レーティング推移</h3>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="ratingCanvas" width="760" height="360"></canvas>
+              <div id="chartTooltip" class="chart-tooltip" role="tooltip"></div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>大会別成績</h3>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th data-sort="tournament">大会</th><th data-sort="record">勝敗無</th><th data-sort="winRate">勝率</th><th data-sort="start">開始レーティング</th><th data-sort="end">終了レーティング</th><th data-sort="delta">変動</th></tr>
+                </thead>
+                <tbody id="playerTournamentBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>対戦相手別期待勝率</h3>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th data-sort="name">相手</th><th data-sort="expected">期待勝率</th><th data-sort="rating">相手レーティング</th><th data-sort="record">勝敗無</th></tr>
+                </thead>
+                <tbody id="playerOpponentBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>大会終了時レーティング推移</h3>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th data-sort="index">#</th><th data-sort="tournament">大会</th><th data-sort="stage">区分</th><th data-sort="rating">レーティング</th><th data-sort="delta">変動</th></tr>
+                </thead>
+                <tbody id="playerRatingHistoryBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section id="importView" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>チーム編成を追加</h3>
+              <button id="addTeamEntryButton" class="primary">追加</button>
+            </div>
+            <form id="teamEntryForm" class="match-form">
+              <label class="field-label">大会名<input name="tournament" list="tournamentOptions" placeholder="例: 2026" /></label>
+              <label class="field-label">リーグ<input name="league" placeholder="例: A" /></label>
+              <label class="field-label">チーム名<input name="team" list="teamOptions" placeholder="例: チーム藤井" /></label>
+              <label class="field-label">棋士1<input name="player1" list="playerOptions" /></label>
+              <label class="field-label">棋士2<input name="player2" list="playerOptions" /></label>
+              <label class="field-label">棋士3<input name="player3" list="playerOptions" /></label>
+              <label class="field-label">棋士4<input name="player4" list="playerOptions" /></label>
+              <label class="field-label">棋士5<input name="player5" list="playerOptions" /></label>
+              <label class="checkbox-label"><input name="leader" type="checkbox" /> 1人目をリーダーにする</label>
+            </form>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>大会名・チーム編成を編集</h3>
+              <button id="renameTournamentButton" class="primary">大会名を更新</button>
+            </div>
+            <form id="renameTournamentForm" class="match-form">
+              <label class="field-label">変更したい大会名<input name="from" list="tournamentOptions" placeholder="例: 2025" /></label>
+              <label class="field-label">変更後の大会名<input name="to" placeholder="例: 第8回" /></label>
+            </form>
+            <p class="helper-text">大会名を変えると、試合履歴とチーム編成に登録済みの同じ大会名をまとめて更新します。</p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th data-sort="tournament">大会</th><th data-sort="league">リーグ</th><th data-sort="team">チーム</th><th>棋士</th><th></th></tr>
+                </thead>
+                <tbody id="teamMetaBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel import-panel">
+            <h3>CSV / JSON 取り込み</h3>
+            <p>Numbers で表を開き、「ファイル」から CSV 形式で書き出したものを選択してください。ABEMAトーナメントの対戦表CSVは、対局前レートと勝数列を読み取り、K値で再計算します。</p>
+            <input id="fileInput" type="file" accept=".csv,.json,text/csv,application/json" />
+            <textarea id="pasteArea" placeholder="CSVをここに貼り付けても取り込めます"></textarea>
+            <div class="button-row">
+              <button id="importPasteButton" class="primary">貼り付けCSVを取り込む</button>
+            </div>
+            <details>
+              <summary>対応する主な列名</summary>
+              <p>対戦表: A、B、対局前Aレート、対局前Bレート、A勝/A勝数、B数/B勝数、対局後Aレート、対局後Bレート。汎用形式: 日付/date、大会/tournament、回戦/stage、チームA/teamA、棋士A/playerA、チームB/teamB、棋士B/playerB、勝者/winner、備考/note</p>
+            </details>
+          </section>
+        </section>
+
+        <section id="settingsView" class="view">
+          <section class="panel settings-grid">
+            <label>初期レーティング<input id="initialRating" type="number" min="0" step="10" /></label>
+            <label>K値<input id="kFactor" type="number" min="1" step="1" /></label>
+            <label>最低対局数<input id="minGames" type="number" min="0" step="1" /></label>
+            <button id="saveSettingsButton" class="primary">保存して再計算</button>
+          </section>
+          <section class="panel import-panel">
+            <h3>外部データファイル</h3>
+            <p>表示はブラウザ内のローカルストレージを使います。別の環境でも同じ内容を表示したい場合は、外部JSONファイルを読み込み・保存してください。同じフォルダに <code>abema-rating-data.json</code> がある場合は起動時に読み込みます。</p>
+            <div class="button-row">
+              <button id="openExternalFileButton">外部JSONを開く</button>
+              <button id="saveExternalFileButton" class="primary">外部JSONへ保存</button>
+            </div>
+            <p id="externalFileStatus" class="status-text">未接続 / 最終更新: -</p>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <datalist id="tournamentOptions"></datalist>
+    <datalist id="teamOptions"></datalist>
+    <datalist id="playerOptions"></datalist>
+    <script src="./app.js"></script>
+  </body>
+</html>
