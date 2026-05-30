@@ -17,6 +17,13 @@ const REGIONAL_2026_BRACKET = {
     ["北関東ブリッツァーズ", "ノース・トラッズ神戸"]
   ]
 };
+const REGIONAL_AWARDS = [
+  { key: "mostWins", label: "最多勝" },
+  { key: "bestWinRate", label: "最高勝率賞" },
+  { key: "mostGames", label: "最多対局賞" },
+  { key: "bestPrelim", label: "予選最高成績賞" },
+  { key: "fightingSpirit", label: "敢闘賞" }
+];
 
 const sampleMatches = [
   { date: "2025-04-05", tournament: "2025", stage: "予選第1試合", teamA: "チーム藤井", playerA: "藤井聡太", teamB: "チーム永瀬", playerB: "永瀬拓矢", winner: "A", note: "" },
@@ -29,6 +36,7 @@ const sampleMatches = [
 const state = loadState();
 let computed = computeRatings();
 let chartPoints = [];
+let pendingChartFrame = 0;
 let editingMatchIndex = null;
 let editingTeamMetaIndex = null;
 let externalFileHandle = null;
@@ -122,10 +130,12 @@ const els = {
   simulationPlayerStatsBBody: document.querySelector("#simulationPlayerStatsBBody"),
   simulationSampleLog: document.querySelector("#simulationSampleLog"),
   runRegionalForecastButton: document.querySelector("#runRegionalForecastButton"),
+  regionalForecastCountInput: document.querySelector("#regionalForecastCountInput"),
   regionalForecastStatus: document.querySelector("#regionalForecastStatus"),
   regionalForecastWarnings: document.querySelector("#regionalForecastWarnings"),
   regionalForecastSummary: document.querySelector("#regionalForecastSummary"),
   regionalForecastBody: document.querySelector("#regionalForecastBody"),
+  regionalAwardBody: document.querySelector("#regionalAwardBody"),
   regionalForecastSampleLog: document.querySelector("#regionalForecastSampleLog"),
   customTeamABox: document.querySelector("#customTeamABox"),
   customTeamBBox: document.querySelector("#customTeamBBox"),
@@ -152,12 +162,12 @@ els.formTournament.addEventListener("input", renderFormOptions);
 els.teamEntryTournament.addEventListener("input", renderFormOptions);
 els.playerDetailSelect.addEventListener("change", () => {
   renderPlayerDetail();
-  drawChart();
+  scheduleChartDraw();
 });
 els.playerDetailSelect.addEventListener("input", () => {
   if (computed.players.has(els.playerDetailSelect.value)) {
     renderPlayerDetail();
-    drawChart();
+    scheduleChartDraw();
   }
 });
 els.addMatchButton.addEventListener("click", addMatchFromForm);
@@ -185,14 +195,17 @@ els.simulationTeamASelect.addEventListener("change", renderSimulationPreview);
 els.simulationTeamBSelect.addEventListener("change", renderSimulationPreview);
 els.simulationCountInput.addEventListener("input", () => {
   renderSimulationPreview();
-  renderRegionalForecastPreview();
 });
+els.regionalForecastCountInput.addEventListener("input", renderRegionalForecastPreview);
 els.customTeamAPlayers.forEach(registerCustomTeamInput);
 els.customTeamBPlayers.forEach(registerCustomTeamInput);
 els.copyCustomTeamAButton.addEventListener("click", () => fillCustomTeamFromFirst("A"));
 els.copyCustomTeamBButton.addEventListener("click", () => fillCustomTeamFromFirst("B"));
 els.runSimulationButton.addEventListener("click", handleSimulationButton);
 els.runRegionalForecastButton.addEventListener("click", handleRegionalForecastButton);
+document.querySelectorAll("[data-simulation-tab]").forEach((button) => {
+  button.addEventListener("click", () => setSimulationTab(button.dataset.simulationTab));
+});
 document.addEventListener("click", (event) => {
   if (customTeamSuggestionBox?.contains(event.target)) return;
   if (els.customTeamAPlayers.includes(event.target) || els.customTeamBPlayers.includes(event.target)) return;
@@ -383,8 +396,8 @@ function render() {
   renderSimulationControls();
   renderSimulationPreview();
   renderRegionalForecastPreview();
-  drawChart();
   renderPlayerDetail();
+  scheduleChartDraw();
 }
 
 function renderSettings() {
@@ -917,10 +930,14 @@ function prepareSimulationTeam(team, side) {
   };
 }
 
-function getSimulationCount() {
-  const value = Math.round(Number(els.simulationCountInput.value || 100000));
+function getSimulationCount(input = els.simulationCountInput) {
+  const value = Math.round(Number(input.value || 100000));
   if (!Number.isFinite(value)) return 100000;
   return Math.max(1, value);
+}
+
+function getRegionalForecastCount() {
+  return getSimulationCount(els.regionalForecastCountInput);
 }
 
 function getSimulationStageOptions(tournament) {
@@ -1002,12 +1019,13 @@ function renderRegionalForecastPreview() {
   const setup = getRegionalForecastSetup();
   els.regionalForecastWarnings.innerHTML = setup.warnings.map((warning) => `<div class="warning-item">${escapeHtml(warning)}</div>`).join("");
   els.regionalForecastBody.innerHTML = emptyRow(7, "優勝予測実行後に表示します");
+  els.regionalAwardBody.innerHTML = emptyRow(6, "優勝予測実行後に表示します");
   els.regionalForecastSummary.innerHTML = "";
   els.regionalForecastSampleLog.innerHTML = "";
   if (setup.warnings.length) {
     els.regionalForecastStatus.textContent = "地域2026のチーム編成を確認してください。";
   } else {
-    els.regionalForecastStatus.textContent = `${getSimulationCount().toLocaleString("ja-JP")}回実行できます。予選A/Bリーグと仮定決勝トーナメントをまとめて計算します。`;
+    els.regionalForecastStatus.textContent = `${getRegionalForecastCount().toLocaleString("ja-JP")}回実行できます。予選A/Bリーグと仮定決勝トーナメントをまとめて計算します。`;
   }
 }
 
@@ -1041,12 +1059,13 @@ async function runRegionalForecast() {
     return;
   }
 
-  const total = getSimulationCount();
-  els.simulationCountInput.value = total;
+  const total = getRegionalForecastCount();
+  els.regionalForecastCountInput.value = total;
   const chunkSize = 500;
   const runId = ++regionalForecastRunId;
   let completed = 0;
   const stats = createRegionalForecastStats(setup.orderedTeams);
+  const awardStats = createRegionalAwardStats(setup.orderedTeams);
   let sample = null;
   regionalForecastRunning = true;
   regionalForecastStopRequested = false;
@@ -1054,6 +1073,7 @@ async function runRegionalForecast() {
   els.runRegionalForecastButton.textContent = "停止して結果表示";
   els.regionalForecastSummary.innerHTML = "";
   els.regionalForecastBody.innerHTML = emptyRow(7, "計算中です");
+  els.regionalAwardBody.innerHTML = emptyRow(6, "計算中です");
   els.regionalForecastSampleLog.innerHTML = "";
 
   for (let done = 0; done < total && runId === regionalForecastRunId && !regionalForecastStopRequested; done += chunkSize) {
@@ -1061,6 +1081,7 @@ async function runRegionalForecast() {
     for (let index = 0; index < limit; index++) {
       const tournament = simulateRegionalTournament(setup, sample === null);
       addRegionalForecastResult(stats, tournament);
+      addRegionalAwardResult(awardStats, tournament);
       if (sample === null) sample = tournament.log;
     }
     completed = Math.min(total, done + limit);
@@ -1078,7 +1099,7 @@ async function runRegionalForecast() {
     els.regionalForecastStatus.textContent = "結果を表示するには1回以上実行してください。";
     return;
   }
-  renderRegionalForecastResult(stats, completed, sample || []);
+  renderRegionalForecastResult(stats, awardStats, completed, sample || []);
   els.regionalForecastStatus.textContent = stopped
     ? `${completed.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 回で停止しました。途中結果を表示しています。`
     : "完了しました。";
@@ -1745,6 +1766,7 @@ function drawChart() {
   const canvas = els.ratingCanvas;
   const ctx = canvas.getContext("2d");
   const player = computed.players.get(els.playerDetailSelect.value);
+  if (!isChartVisible(canvas)) return;
   const size = resizeCanvasForDisplay(canvas, ctx);
   const width = size.width;
   const height = size.height;
@@ -1807,6 +1829,19 @@ function drawChart() {
   ctx.fillText(Math.round(min).toString(), 12, bottom + 4);
 }
 
+function scheduleChartDraw() {
+  if (pendingChartFrame) cancelAnimationFrame(pendingChartFrame);
+  pendingChartFrame = requestAnimationFrame(() => {
+    pendingChartFrame = 0;
+    drawChart();
+  });
+}
+
+function isChartVisible(canvas) {
+  const view = document.querySelector("#playersView");
+  return view.classList.contains("active-view") && canvas.getBoundingClientRect().width > 0;
+}
+
 function resizeCanvasForDisplay(canvas, ctx) {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -1823,7 +1858,7 @@ function resizeCanvasForDisplay(canvas, ctx) {
 }
 
 window.addEventListener("resize", () => {
-  if (document.querySelector("#playersView").classList.contains("active-view")) drawChart();
+  if (document.querySelector("#playersView").classList.contains("active-view")) scheduleChartDraw();
 });
 
 function setView(view) {
@@ -1832,6 +1867,20 @@ function setView(view) {
   document.querySelector(`#${view}View`).classList.add("active-view");
   els.viewTitle.textContent = { dashboard: "概要", tournaments: "大会", simulation: "チーム対決シミュレーション", matches: "試合", players: "棋士", import: "追加", settings: "設定" }[view];
   els.searchBox.hidden = !SEARCHABLE_VIEWS.has(view);
+  if (view === "players") scheduleChartDraw();
+}
+
+function setSimulationTab(tab) {
+  document.querySelectorAll("[data-simulation-tab]").forEach((button) => {
+    const active = button.dataset.simulationTab === tab;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  document.querySelectorAll("[data-simulation-pane]").forEach((pane) => {
+    const active = pane.dataset.simulationPane === tab;
+    pane.classList.toggle("active-simulation-pane", active);
+    pane.hidden = !active;
+  });
 }
 
 function addMatchFromForm() {
