@@ -20212,6 +20212,20 @@
       "aWins": 1,
       "bWins": 0,
       "note": ""
+    },
+    {
+      "date": "2026-05-30",
+      "tournament": "地域2026",
+      "stage": "予選 リーグA 1組 7局",
+      "teamA": "ルシーグ横浜",
+      "playerA": "斎藤明日斗",
+      "teamB": "九州サザンフェニックス",
+      "playerB": "佐々木大地",
+      "sente": "B",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
     }
   ],
   "rankingMeta": [
@@ -23610,5 +23624,5 @@
     }
   ],
   "ratingFormulaVersion": 2,
-  "savedAt": "2026-05-30T13:48:12.850Z"
+  "savedAt": "2026-05-30T14:25:05.876Z"
 }
