@@ -17,6 +17,37 @@ const REGIONAL_2026_BRACKET = {
     ["北関東ブリッツァーズ", "ノース・トラッズ神戸"]
   ]
 };
+const MATCH_STAGE_PHASES = ["予選", "本選"];
+const MATCH_STAGE_TYPES = [
+  { value: "リーグA", label: "リーグA", groupRequired: true },
+  { value: "リーグB", label: "リーグB", groupRequired: true },
+  { value: "リーグC", label: "リーグC", groupRequired: true },
+  { value: "リーグ準", label: "準決勝", groupRequired: true },
+  { value: "リーグ決", label: "決勝", groupRequired: false }
+];
+const MATCH_STAGE_MATCHES = [
+  { value: "1", label: "初戦1" },
+  { value: "2", label: "初戦2" },
+  { value: "3", label: "1位決定戦" },
+  { value: "4", label: "敗者復活戦" },
+  { value: "5", label: "2位決定戦" }
+];
+const MATCH_STAGE_GAMES = Array.from({ length: 9 }, (_, index) => String(index + 1));
+const REGIONAL_STAGE_PREFIXES = {
+  "Aリーグ 初戦1": "予選 リーグA 1組",
+  "Aリーグ 初戦2": "予選 リーグA 2組",
+  "Aリーグ 1位決定戦": "予選 リーグA 3組",
+  "Aリーグ 敗者復活戦": "予選 リーグA 4組",
+  "Aリーグ 2位決定戦": "予選 リーグA 5組",
+  "Bリーグ 初戦1": "予選 リーグB 1組",
+  "Bリーグ 初戦2": "予選 リーグB 2組",
+  "Bリーグ 1位決定戦": "予選 リーグB 3組",
+  "Bリーグ 敗者復活戦": "予選 リーグB 4組",
+  "Bリーグ 2位決定戦": "予選 リーグB 5組",
+  "準決勝1 (A1 vs B2)": "本選 リーグ準 1組",
+  "準決勝2 (B1 vs A2)": "本選 リーグ準 2組",
+  "決勝": "本選 リーグ決"
+};
 const REGIONAL_AWARDS = [
   { key: "mostWins", label: "最多勝" },
   { key: "bestWinRate", label: "最高勝率賞" },
@@ -85,9 +116,18 @@ const els = {
   matchForm: document.querySelector("#matchForm"),
   teamEntryForm: document.querySelector("#teamEntryForm"),
   formTournament: document.querySelector('#matchForm [name="tournament"]'),
+  matchStage: document.querySelector('#matchForm [name="stage"]'),
+  matchStagePhaseSelect: document.querySelector("#matchStagePhaseSelect"),
+  matchStageTypeSelect: document.querySelector("#matchStageTypeSelect"),
+  matchStageMatchSelect: document.querySelector("#matchStageMatchSelect"),
+  matchStageGameSelect: document.querySelector("#matchStageGameSelect"),
+  matchTeamA: document.querySelector('#matchForm [name="teamA"]'),
+  matchTeamB: document.querySelector('#matchForm [name="teamB"]'),
   teamEntryTournament: document.querySelector('#teamEntryForm [name="tournament"]'),
   tournamentOptions: document.querySelector("#tournamentOptions"),
   teamOptions: document.querySelector("#teamOptions"),
+  matchPlayerAOptions: document.querySelector("#matchPlayerAOptions"),
+  matchPlayerBOptions: document.querySelector("#matchPlayerBOptions"),
   playerOptions: document.querySelector("#playerOptions"),
   addMatchButton: document.querySelector("#addMatchButton"),
   addTeamEntryButton: document.querySelector("#addTeamEntryButton"),
@@ -135,6 +175,7 @@ const els = {
   regionalForecastCountInput: document.querySelector("#regionalForecastCountInput"),
   regionalForecastStatus: document.querySelector("#regionalForecastStatus"),
   regionalForecastWarnings: document.querySelector("#regionalForecastWarnings"),
+  regionalForecastFixedSummary: document.querySelector("#regionalForecastFixedSummary"),
   regionalForecastBody: document.querySelector("#regionalForecastBody"),
   regionalAwardBody: document.querySelector("#regionalAwardBody"),
   regionalForecastSampleLog: document.querySelector("#regionalForecastSampleLog"),
@@ -160,6 +201,12 @@ els.tournamentSelect.addEventListener("change", renderTournaments);
 els.ratingCanvas.addEventListener("mousemove", showChartTooltip);
 els.ratingCanvas.addEventListener("mouseleave", hideChartTooltip);
 els.formTournament.addEventListener("input", renderFormOptions);
+els.matchStagePhaseSelect.addEventListener("change", updateMatchStageInput);
+els.matchStageTypeSelect.addEventListener("change", updateMatchStageInput);
+els.matchStageMatchSelect.addEventListener("change", updateMatchStageInput);
+els.matchStageGameSelect.addEventListener("change", updateMatchStageInput);
+els.matchTeamA.addEventListener("input", renderFormOptions);
+els.matchTeamB.addEventListener("input", renderFormOptions);
 els.teamEntryTournament.addEventListener("input", renderFormOptions);
 els.playerDetailSelect.addEventListener("change", () => {
   renderPlayerDetail();
@@ -720,9 +767,99 @@ function renderFormOptions() {
       .filter(Boolean)
   ]);
   const players = [...computed.players.keys()].sort((a, b) => a.localeCompare(b, "ja"));
+  const playerOptions = players.map((name) => `<option value="${escapeAttr(name)}"></option>`).join("");
+  const playerAOptions = getMatchPlayerOptions(selectedTournament, els.matchTeamA.value, players)
+    .map((name) => `<option value="${escapeAttr(name)}"></option>`).join("");
+  const playerBOptions = getMatchPlayerOptions(selectedTournament, els.matchTeamB.value, players)
+    .map((name) => `<option value="${escapeAttr(name)}"></option>`).join("");
   els.tournamentOptions.innerHTML = tournaments.map((name) => `<option value="${escapeAttr(name)}"></option>`).join("");
   els.teamOptions.innerHTML = teams.map((name) => `<option value="${escapeAttr(name)}"></option>`).join("");
-  els.playerOptions.innerHTML = players.map((name) => `<option value="${escapeAttr(name)}"></option>`).join("");
+  els.matchPlayerAOptions.innerHTML = playerAOptions;
+  els.matchPlayerBOptions.innerHTML = playerBOptions;
+  els.playerOptions.innerHTML = playerOptions;
+  renderMatchStageControls();
+}
+
+function renderMatchStageControls() {
+  if (!els.matchStagePhaseSelect.options.length) {
+    els.matchStagePhaseSelect.innerHTML = MATCH_STAGE_PHASES.map((phase) => `<option value="${escapeAttr(phase)}">${escapeHtml(phase)}</option>`).join("");
+    els.matchStageTypeSelect.innerHTML = MATCH_STAGE_TYPES.map((type) => `<option value="${escapeAttr(type.value)}">${escapeHtml(type.label)}</option>`).join("");
+    els.matchStageMatchSelect.innerHTML = MATCH_STAGE_MATCHES.map((match) => `<option value="${escapeAttr(match.value)}">${escapeHtml(match.label)}</option>`).join("");
+    els.matchStageGameSelect.innerHTML = MATCH_STAGE_GAMES.map((game) => `<option value="${escapeAttr(game)}">${escapeHtml(`${game}局`)}</option>`).join("");
+  }
+  if (!els.matchStage.value) updateMatchStageInput();
+  updateMatchStageAvailability();
+}
+
+function updateMatchStageInput() {
+  updateMatchStageAvailability();
+  els.matchStage.value = composeMatchStage();
+}
+
+function updateMatchStageAvailability() {
+  const type = MATCH_STAGE_TYPES.find((item) => item.value === els.matchStageTypeSelect.value) || MATCH_STAGE_TYPES[0];
+  els.matchStageMatchSelect.disabled = !type.groupRequired;
+}
+
+function composeMatchStage() {
+  const phase = els.matchStagePhaseSelect.value || MATCH_STAGE_PHASES[0];
+  const type = els.matchStageTypeSelect.value || MATCH_STAGE_TYPES[0].value;
+  const game = els.matchStageGameSelect.value || "1";
+  const typeMeta = MATCH_STAGE_TYPES.find((item) => item.value === type) || MATCH_STAGE_TYPES[0];
+  return [phase, type, typeMeta.groupRequired ? `${els.matchStageMatchSelect.value || "1"}組` : "", `${game}局`]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function applyMatchStageControls(stage) {
+  if (!els.matchStagePhaseSelect.options.length) renderMatchStageControls();
+  const parsed = parseMatchStage(stage);
+  els.matchStagePhaseSelect.value = parsed.phase;
+  els.matchStageTypeSelect.value = parsed.type;
+  els.matchStageMatchSelect.value = parsed.match;
+  els.matchStageGameSelect.value = parsed.game;
+  updateMatchStageInput();
+}
+
+function parseMatchStage(stage) {
+  const normalized = normalizeName(stage);
+  const match = normalized.match(/^(予選|本選)\s+(リーグ[A-ZＡ-Ｚ]|リーグ準|リーグ決)(?:\s+([一二三四五六七八九十\d]+)組)?(?:\s+(\d+)局)?$/);
+  if (!match) return { phase: "予選", type: "リーグA", match: "1", game: "1" };
+  return {
+    phase: match[1],
+    type: normalizeStageType(match[2]),
+    match: normalizeStageNumber(match[3]) || "1",
+    game: match[4] || "1"
+  };
+}
+
+function normalizeStageType(value) {
+  const normalized = normalizeName(value).replace("リーグＡ", "リーグA").replace("リーグＢ", "リーグB").replace("リーグＣ", "リーグC");
+  return MATCH_STAGE_TYPES.some((type) => type.value === normalized) ? normalized : "リーグA";
+}
+
+function normalizeStageNumber(value) {
+  const text = normalizeName(value);
+  const kanji = { "一": "1", "二": "2", "三": "3", "四": "4", "五": "5" };
+  return kanji[text] || text.replace(/[^\d]/g, "");
+}
+
+function getMatchPlayerOptions(tournament, team, allPlayers) {
+  const selectedTeam = normalizeName(team);
+  const selectedTournament = normalizeName(tournament);
+  if (!selectedTeam) return allPlayers;
+  const members = uniqueInOrder([
+    ...(state.rankingMeta || [])
+      .filter((item) => (!selectedTournament || normalizeName(item.tournament) === selectedTournament) && normalizeName(item.team) === selectedTeam)
+      .map((item) => item.player),
+    ...state.matches
+      .filter((match) => !selectedTournament || normalizeName(match.tournament) === selectedTournament)
+      .flatMap((match) => [
+        normalizeName(match.teamA) === selectedTeam ? match.playerA : "",
+        normalizeName(match.teamB) === selectedTeam ? match.playerB : ""
+      ])
+  ].map((name) => normalizeName(name)).filter(Boolean));
+  return members.sort((a, b) => a.localeCompare(b, "ja"));
 }
 
 function renderSimulationControls() {
@@ -1024,6 +1161,7 @@ function validateSimulationTeam(team, label) {
 function renderRegionalForecastPreview() {
   const setup = getRegionalForecastSetup();
   els.regionalForecastWarnings.innerHTML = setup.warnings.map((warning) => `<div class="warning-item">${escapeHtml(warning)}</div>`).join("");
+  els.regionalForecastFixedSummary.innerHTML = "";
   els.regionalForecastBody.innerHTML = emptyRow(7, "優勝予測実行後に表示します");
   regionalAwardRenderState = null;
   els.regionalAwardBody.innerHTML = emptyRow(6, "優勝予測実行後に表示します");
@@ -1040,6 +1178,7 @@ function getRegionalForecastSetup() {
     .filter((group) => group.tournament === REGIONAL_2026_TOURNAMENT)
     .map((group) => [group.team, group]));
   const orderedTeams = getRegionalBracketTeamNames().map((name) => teamMap.get(name)).filter(Boolean);
+  const confirmedCache = new Map();
   const warnings = [];
   getRegionalBracketTeamNames().forEach((name) => {
     const team = teamMap.get(name);
@@ -1049,7 +1188,7 @@ function getRegionalForecastSetup() {
     }
     warnings.push(...validateSimulationTeam(team, regionalDisplayName(team)).map((warning) => warning.replace(/^チームA|^チームB/, "チーム")));
   });
-  return { teams: teamMap, orderedTeams, warnings };
+  return { teams: teamMap, orderedTeams, confirmedCache, warnings };
 }
 
 function getRegionalBracketTeamNames() {
@@ -1078,6 +1217,7 @@ async function runRegionalForecast() {
   els.runRegionalForecastButton.disabled = false;
   els.runRegionalForecastButton.textContent = "停止して結果表示";
   els.regionalForecastBody.innerHTML = emptyRow(7, "計算中です");
+  els.regionalForecastFixedSummary.innerHTML = "";
   regionalAwardRenderState = null;
   els.regionalAwardBody.innerHTML = emptyRow(6, "計算中です");
   els.regionalForecastSampleLog.innerHTML = "";
@@ -1105,7 +1245,7 @@ async function runRegionalForecast() {
     els.regionalForecastStatus.textContent = "結果を表示するには1回以上実行してください。";
     return;
   }
-  renderRegionalForecastResult(stats, awardStats, completed, sample || []);
+  renderRegionalForecastResult(stats, awardStats, completed, sample || [], setup);
   els.regionalForecastStatus.textContent = stopped
     ? `${completed.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 回で停止しました。途中結果を表示しています。`
     : "完了しました。";
@@ -1165,7 +1305,7 @@ function simulateRegionalTournament(setup, keepLog = false) {
   const sample = { aLeague: [], bLeague: [], finals: [] };
   const playerStats = createRegionalTournamentPlayerStats(setup.orderedTeams);
   const play = (label, teamA, teamB, phase) => {
-    const match = simulateRegionalTeamMatch(teamA, teamB, label);
+    const match = simulateRegionalTeamMatch(setup, teamA, teamB, label);
     mergeRegionalTournamentPlayerStats(playerStats, match.playerStats, phase);
     if (keepLog) addRegionalSampleMatch(sample, label, match, phase);
     return match;
@@ -1209,7 +1349,8 @@ function addRegionalSampleMatch(sample, label, match, phase) {
     teamA: regionalDisplayName(match.teamA),
     teamB: regionalDisplayName(match.teamB),
     score: `${match.scoreA}-${match.scoreB}`,
-    winner: regionalDisplayName(match.winner)
+    winner: regionalDisplayName(match.winner),
+    fixedGames: match.fixedGames
   };
   if (phase === "final") {
     sample.finals.push(item);
@@ -1220,14 +1361,32 @@ function addRegionalSampleMatch(sample, label, match, phase) {
   }
 }
 
-function simulateRegionalTeamMatch(teamA, teamB, label) {
+function simulateRegionalTeamMatch(setup, teamA, teamB, label) {
   const preparedA = prepareSimulationTeam(teamA, "A");
   const preparedB = prepareSimulationTeam(teamB, "B");
-  const result = simulateTeamMatch(preparedA.members, preparedB.members);
+  const confirmed = getRegionalConfirmedGames(setup, label, preparedA, preparedB);
+  const result = simulateTeamMatch(preparedA.members, preparedB.members, confirmed.games);
   const aWon = result.winner === "A";
   const winner = aWon ? teamA : teamB;
   const loser = aWon ? teamB : teamA;
-  return { label, teamA, teamB, winner, loser, scoreA: result.scoreA, scoreB: result.scoreB, playerStats: result.playerStats };
+  return { label, teamA, teamB, winner, loser, scoreA: result.scoreA, scoreB: result.scoreB, fixedGames: confirmed.games.length, playerStats: result.playerStats };
+}
+
+function getRegionalConfirmedGames(setup, label, teamA, teamB) {
+  const key = `${label}__${teamA.team}__vs__${teamB.team}`;
+  if (!setup.confirmedCache.has(key)) {
+    const stagePrefix = REGIONAL_STAGE_PREFIXES[label] || "";
+    setup.confirmedCache.set(key, stagePrefix
+      ? getConfirmedSimulationGames(REGIONAL_2026_TOURNAMENT, (stage) => isStageInPrefix(stage, stagePrefix), teamA, teamB)
+      : { games: [], warnings: [] });
+  }
+  return setup.confirmedCache.get(key);
+}
+
+function isStageInPrefix(stage, prefix) {
+  const normalizedStage = normalizeName(stage);
+  const normalizedPrefix = normalizeName(prefix);
+  return normalizedStage === normalizedPrefix || normalizedStage.startsWith(`${normalizedPrefix} `);
 }
 
 function addRegionalForecastResult(stats, tournament) {
@@ -1381,7 +1540,7 @@ function isRegionalFirstTimer(name) {
   });
 }
 
-function renderRegionalForecastResult(stats, awardStats, total, sample) {
+function renderRegionalForecastResult(stats, awardStats, total, sample, setup) {
   const rows = [...stats.values()].sort((left, right) => {
     const leagueCompare = String(left.league).localeCompare(String(right.league), "ja");
     if (leagueCompare) return leagueCompare;
@@ -1399,6 +1558,7 @@ function renderRegionalForecastResult(stats, awardStats, total, sample) {
       <td><strong>${formatRegionalRate(row.champion, total)}</strong></td>
     </tr>`;
   }).join("");
+  els.regionalForecastFixedSummary.innerHTML = renderRegionalFixedSummary(setup);
   regionalAwardRenderState = { awardStats, total };
   renderRegionalAwardRows();
   els.regionalForecastSampleLog.innerHTML = renderRegionalSampleBracket(sample);
@@ -1418,6 +1578,34 @@ function renderRegionalSampleBracket(sample) {
     <div class="sample-bracket-section">
       <h4>決勝トーナメント</h4>
       <div class="sample-bracket-grid finals-grid">${renderRegionalSampleCards(sample.finals)}</div>
+    </div>
+  `;
+}
+
+function renderRegionalFixedSummary(setup) {
+  const fixedMatches = [...setup.confirmedCache.entries()]
+    .map(([key, confirmed]) => ({
+      label: key.split("__")[0],
+      games: confirmed.games.length
+    }))
+    .filter((match) => match.games > 0)
+    .sort((left, right) => left.label.localeCompare(right.label, "ja"));
+  if (!fixedMatches.length) {
+    return `
+      <div class="regional-fixed-summary regional-fixed-summary-empty">
+        <strong>確定済み対局なし</strong>
+        <span>登録済みの対局は固定せず、全カードを現在レーティングから試行しています</span>
+      </div>
+    `;
+  }
+  const fixedTotal = fixedMatches.reduce((sum, match) => sum + match.games, 0);
+  return `
+    <div class="regional-fixed-summary">
+      <strong>確定済み対局を反映</strong>
+      <span>${fixedMatches.length}カード / ${fixedTotal}局を優勝予測全体に固定しています</span>
+      <div>
+        ${fixedMatches.map((match) => `<em>${escapeHtml(match.label)}: ${match.games}局</em>`).join("")}
+      </div>
     </div>
   `;
 }
@@ -1656,7 +1844,11 @@ function getConfirmedSimulationGames(tournament, stage, teamA, teamB) {
   const warnings = [];
   const sourceMatches = computed.history
     .filter((match) => (match.tournament || "未分類") === tournament && match.playerB !== "__基準__")
-    .filter((match) => !stage || (match.stage || "未分類") === stage)
+    .filter((match) => {
+      if (!stage) return true;
+      const matchStage = match.stage || "未分類";
+      return typeof stage === "function" ? stage(matchStage) : matchStage === stage;
+    })
     .filter((match) => match.winner === "A" || match.winner === "B");
   const raw = sourceMatches
     .map((match) => {
@@ -2151,6 +2343,7 @@ function setRegionalAwardTab(tab) {
 }
 
 function addMatchFromForm() {
+  updateMatchStageInput();
   const data = Object.fromEntries(new FormData(els.matchForm).entries());
   if (!data.playerA || !data.playerB || !data.winner) {
     showToast("棋士A・棋士B・勝者を入力してください");
@@ -2166,6 +2359,7 @@ function addMatchFromForm() {
     showToast("試合を更新しました");
   }
   els.matchForm.reset();
+  applyMatchStageControls("");
   recompute();
 }
 
@@ -2327,7 +2521,6 @@ function startEditMatch(index) {
   Object.entries({
     date: match.date || "",
     tournament: match.tournament || "",
-    stage: match.stage || "",
     teamA: match.teamA || "",
     playerA: match.playerA || "",
     teamB: match.teamB || "",
@@ -2338,6 +2531,8 @@ function startEditMatch(index) {
     const field = els.matchForm.elements[name];
     if (field) field.value = value;
   });
+  applyMatchStageControls(match.stage || "");
+  renderFormOptions();
   els.addMatchButton.textContent = "更新";
   els.cancelEditButton.hidden = false;
   els.matchForm.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -2347,6 +2542,7 @@ function startEditMatch(index) {
 function cancelEditMatch() {
   resetEditMode();
   els.matchForm.reset();
+  applyMatchStageControls("");
   renderFormOptions();
   showToast("編集をキャンセルしました");
 }
@@ -2365,6 +2561,7 @@ function deleteMatch(index) {
   state.matches.splice(index, 1);
   if (editingMatchIndex === index) {
     els.matchForm.reset();
+    applyMatchStageControls("");
     resetEditMode();
   }
   recompute();

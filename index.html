@@ -245,6 +245,7 @@
               <label class="field-label simulation-count-compact">回数<input id="regionalForecastCountInput" type="number" min="1" step="1000" value="100000" /></label>
               <p id="regionalForecastStatus" class="status-text">地域2026の8チームを使って予選突破率と優勝率を計算します。</p>
               <div id="regionalForecastWarnings" class="warning-list"></div>
+              <div id="regionalForecastFixedSummary"></div>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -295,11 +296,15 @@
             <form id="matchForm" class="match-form">
               <input name="date" type="date" />
               <input name="tournament" list="tournamentOptions" placeholder="大会・年度 例: 2025" />
-              <input name="stage" placeholder="回戦・局 例: 予選第1試合" />
+              <input name="stage" type="hidden" />
+              <select id="matchStagePhaseSelect" aria-label="予選・本選"></select>
+              <select id="matchStageTypeSelect" aria-label="種別"></select>
+              <select id="matchStageMatchSelect" aria-label="試合"></select>
+              <select id="matchStageGameSelect" aria-label="局"></select>
               <input name="teamA" list="teamOptions" placeholder="チームA" />
-              <input name="playerA" list="playerOptions" required placeholder="棋士A" />
+              <input name="playerA" list="matchPlayerAOptions" required placeholder="棋士A" />
               <input name="teamB" list="teamOptions" placeholder="チームB" />
-              <input name="playerB" list="playerOptions" required placeholder="棋士B" />
+              <input name="playerB" list="matchPlayerBOptions" required placeholder="棋士B" />
               <fieldset class="choice-group">
                 <legend>先手</legend>
                 <label><input type="radio" name="sente" value="" checked /> 未設定</label>
@@ -468,6 +473,8 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <datalist id="tournamentOptions"></datalist>
     <datalist id="teamOptions"></datalist>
+    <datalist id="matchPlayerAOptions"></datalist>
+    <datalist id="matchPlayerBOptions"></datalist>
     <datalist id="playerOptions"></datalist>
     <script src="./app.js"></script>
   </body>
