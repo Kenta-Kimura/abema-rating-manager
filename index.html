@@ -16,6 +16,7 @@
         <nav aria-label="メイン">
           <button class="nav-button active" data-view="dashboard" title="ダッシュボード">概要</button>
           <button class="nav-button" data-view="tournaments" title="大会別">大会</button>
+          <button class="nav-button" data-view="simulation" title="チーム対決シミュレーション">シミュレーション</button>
           <button class="nav-button" data-view="matches" title="試合一覧">試合</button>
           <button class="nav-button" data-view="players" title="棋士別">棋士</button>
           <button class="nav-button" data-view="import" title="追加">追加</button>
@@ -113,6 +114,148 @@
                 </table>
               </div>
             </div>
+          </section>
+        </section>
+
+        <section id="simulationView" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>チーム対決シミュレーション</h3>
+            </div>
+            <form id="simulationForm" class="simulation-form">
+              <label class="field-label">大会<select name="tournament" id="simulationTournamentSelect"></select></label>
+              <label class="field-label">試合<select name="stage" id="simulationStageSelect"></select></label>
+              <label class="field-label">リーグ<select name="league" id="simulationLeagueSelect"></select></label>
+              <label class="field-label">チームA<select name="teamA" id="simulationTeamASelect"></select></label>
+              <label class="field-label">チームB<select name="teamB" id="simulationTeamBSelect"></select></label>
+              <label class="field-label">回数<input name="count" id="simulationCountInput" type="number" min="1" step="1000" value="100000" /></label>
+            </form>
+            <div class="custom-simulation-teams">
+              <div class="custom-team-box" id="customTeamABox">
+                <div class="custom-team-head">
+                  <h4>カスタムチームA</h4>
+                  <button type="button" id="copyCustomTeamAButton">1人目で5枠</button>
+                </div>
+                <div class="custom-team-grid">
+                  <label class="field-label">1<input id="customTeamAPlayer1" autocomplete="off" /></label>
+                  <label class="field-label">2<input id="customTeamAPlayer2" autocomplete="off" /></label>
+                  <label class="field-label">3<input id="customTeamAPlayer3" autocomplete="off" /></label>
+                  <label class="field-label">4<input id="customTeamAPlayer4" autocomplete="off" /></label>
+                  <label class="field-label">5<input id="customTeamAPlayer5" autocomplete="off" /></label>
+                </div>
+              </div>
+              <div class="custom-team-box" id="customTeamBBox">
+                <div class="custom-team-head">
+                  <h4>カスタムチームB</h4>
+                  <button type="button" id="copyCustomTeamBButton">1人目で5枠</button>
+                </div>
+                <div class="custom-team-grid">
+                  <label class="field-label">1<input id="customTeamBPlayer1" autocomplete="off" /></label>
+                  <label class="field-label">2<input id="customTeamBPlayer2" autocomplete="off" /></label>
+                  <label class="field-label">3<input id="customTeamBPlayer3" autocomplete="off" /></label>
+                  <label class="field-label">4<input id="customTeamBPlayer4" autocomplete="off" /></label>
+                  <label class="field-label">5<input id="customTeamBPlayer5" autocomplete="off" /></label>
+                </div>
+              </div>
+            </div>
+            <div class="button-row simulation-actions">
+              <button id="runSimulationButton" class="primary">実行</button>
+            </div>
+            <p id="simulationStatus" class="status-text">大会とチームを選択してください。</p>
+            <div id="simulationWarnings" class="warning-list"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>地域2026 優勝予測</h3>
+                <p class="panel-note">決勝トーナメントは A1 vs B2 / B1 vs A2 の仮定で計算します。</p>
+              </div>
+              <button id="runRegionalForecastButton" class="primary">優勝予測を実行</button>
+            </div>
+            <p id="regionalForecastStatus" class="status-text">地域2026の8チームを使って予選突破率と優勝率を計算します。</p>
+            <div id="regionalForecastWarnings" class="warning-list"></div>
+            <div id="regionalForecastSummary" class="simulation-result"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>リーグ</th><th>チーム</th><th>1位率</th><th>2位率</th><th>予選突破率</th><th>準優勝率</th><th>優勝率</th></tr>
+                </thead>
+                <tbody id="regionalForecastBody"></tbody>
+              </table>
+            </div>
+            <div class="regional-bracket-note">
+              <strong>仮定する決勝トーナメント</strong>
+              <span>準決勝1: Aリーグ1位 vs Bリーグ2位</span>
+              <span>準決勝2: Bリーグ1位 vs Aリーグ2位</span>
+              <span>決勝: 準決勝勝者同士</span>
+            </div>
+            <div class="panel-head compact-head">
+              <h3>サンプル1大会</h3>
+            </div>
+            <ol id="regionalForecastSampleLog" class="sample-log"></ol>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>結果</h3>
+            </div>
+            <div id="simulationResult" class="simulation-result"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>対戦スコア分布</h3>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>スコア</th><th>回数</th><th>確率</th></tr>
+                </thead>
+                <tbody id="simulationScoreBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>棋士別期待成績</h3>
+            </div>
+            <div class="split">
+              <div class="table-wrap">
+                <h4 id="simulationPlayerStatsATitle" class="table-title">チームA</h4>
+                <table>
+                  <thead>
+                    <tr><th>棋士名</th><th>現在レーティング</th><th>平均対局数</th><th>期待勝数</th><th>期待敗数</th><th>対局勝率</th><th>S1突破率</th><th>S2期待勝数</th><th>S2勝率</th></tr>
+                  </thead>
+                  <tbody id="simulationPlayerStatsABody"></tbody>
+                </table>
+              </div>
+              <div class="table-wrap">
+                <h4 id="simulationPlayerStatsBTitle" class="table-title">チームB</h4>
+                <table>
+                  <thead>
+                    <tr><th>棋士名</th><th>現在レーティング</th><th>平均対局数</th><th>期待勝数</th><th>期待敗数</th><th>対局勝率</th><th>S1突破率</th><th>S2期待勝数</th><th>S2勝率</th></tr>
+                  </thead>
+                  <tbody id="simulationPlayerStatsBBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>参照された確定済み対局</h3>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>対局順</th><th>棋士A</th><th>棋士B</th><th>勝者</th><th>敗者</th><th>推定ステージ</th></tr>
+                </thead>
+                <tbody id="simulationConfirmedBody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>サンプル1試合</h3>
+            </div>
+            <ol id="simulationSampleLog" class="sample-log"></ol>
           </section>
         </section>
 
@@ -280,7 +423,7 @@
           </section>
           <section class="panel import-panel">
             <h3>外部データファイル</h3>
-            <p>表示はブラウザ内のローカルストレージを使います。別の環境でも同じ内容を表示したい場合は、外部JSONファイルを読み込み・保存してください。同じフォルダに <code>abema-rating-data.json</code> がある場合は起動時に読み込みます。</p>
+            <p>表示はブラウザ内のローカルストレージを使います。別の環境でも同じ内容を表示したい場合は、外部JSONファイルを読み込み・保存してください。同じフォルダに <code>abema-rating-data.json</code> がある場合は、ローカルサーバー起動時に自動読み込みします。ファイルを直接開いた場合は、必要に応じて下のボタンからJSONを開いてください。</p>
             <div class="button-row">
               <button id="openExternalFileButton">外部JSONを開く</button>
               <button id="saveExternalFileButton" class="primary">外部JSONへ保存</button>

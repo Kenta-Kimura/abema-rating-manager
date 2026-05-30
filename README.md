@@ -22,6 +22,29 @@ http://127.0.0.1:4173/
 python3 -m http.server 4174
 ```
 
+Safariで `サーバとの接続が予期せず解除された` と表示された場合は、起動していたローカルサーバーが終了しています。もう一度このフォルダで上のコマンドを実行してから `http://127.0.0.1:4173/` を開き直してください。
+
+`index.html` を直接開くこともできますが、その場合はブラウザ制限により同じフォルダの `abema-rating-data.json` を自動読み込みできないことがあります。データを読み込むには、設定タブの `外部JSONを開く` から `abema-rating-data.json` を選択してください。
+
+## build方法
+
+ビルド工程はありません。次の静的ファイルだけで動作します。
+
+- `index.html`
+- `app.js`
+- `styles.css`
+- `abema-rating-data.json`
+
+## deploy方法
+
+GitHub Pagesで公開します。
+
+1. GitHubのリポジトリ設定で `Settings` -> `Pages` を開く
+2. `Build and deployment` の `Source` を `GitHub Actions` にする
+3. `main` ブランチへマージまたはpushする
+
+`.github/workflows/deploy-pages.yml` が上記の静的ファイルを Pages へデプロイします。手動で反映したい場合は、GitHub Actionsの `Deploy to GitHub Pages` から `Run workflow` を実行してください。
+
 ## 主な機能
 
 - 試合結果の追加・編集・削除
@@ -30,6 +53,8 @@ python3 -m http.server 4174
 - ランキング表示
 - 大会別順位、大会内対局、リーグ・チーム別レーティング
 - 棋士別成績、大会別成績、期待勝率、レーティング推移
+- チーム対決シミュレーション
+- 地域2026の予選突破率・優勝率予測
 - CSV / JSON 取り込み
 - 外部JSONファイルによる別環境とのデータ共有
 

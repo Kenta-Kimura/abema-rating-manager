@@ -15,6 +15,8 @@
 
 [hidden] { display: none !important; }
 
+.hidden { display: none !important; }
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -184,6 +186,10 @@ main {
   gap: 14px;
 }
 
+.split > * {
+  min-width: 0;
+}
+
 .single {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -200,11 +206,23 @@ main {
   justify-content: space-between;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
   margin-bottom: 14px;
 }
 
 .panel-head button + button {
   margin-left: 8px;
+}
+
+.panel-note {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.compact-head {
+  margin-top: 14px;
 }
 
 #addMatchButton {
@@ -316,6 +334,90 @@ canvas {
   gap: 10px;
 }
 
+.simulation-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.table-title {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.custom-simulation-teams {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.custom-team-box {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcfa;
+}
+
+.custom-team-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.custom-team-head h4 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.custom-team-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(80px, 1fr));
+  gap: 8px;
+}
+
+.custom-team-suggestions {
+  position: absolute;
+  z-index: 1000;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(23, 32, 27, 0.16);
+  padding: 4px;
+}
+
+.custom-team-suggestions button {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  padding: 6px 10px;
+}
+
+.custom-team-suggestions button:hover {
+  background: #eef5f2;
+}
+
+.simulation-actions {
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+#runSimulationButton {
+  max-width: 100%;
+  white-space: normal;
+}
+
 .choice-group {
   display: flex;
   align-items: center;
@@ -380,12 +482,44 @@ canvas {
   font-size: 13px;
 }
 
+.warning-list {
+  display: grid;
+  gap: 8px;
+}
+
+.warning-item {
+  padding: 10px 12px;
+  border: 1px solid #f0c2bd;
+  border-radius: 7px;
+  background: #fff7f6;
+  color: var(--accent-2);
+  line-height: 1.5;
+}
+
 input, select, textarea {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 9px 10px;
   min-width: 0;
   background: #fff;
+  color: var(--ink);
+  caret-color: var(--ink);
+  color-scheme: light;
+}
+
+datalist,
+option {
+  background: #fff;
+  color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
+  color-scheme: light;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ink);
+  box-shadow: 0 0 0 1000px #fff inset;
 }
 
 textarea {
@@ -446,6 +580,37 @@ textarea {
   font-size: 22px;
 }
 
+.simulation-result {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.regional-bracket-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.regional-bracket-note strong {
+  color: var(--ink);
+}
+
+.sample-log {
+  margin: 0;
+  padding-left: 24px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.sample-log li + li {
+  margin-top: 4px;
+}
+
 .toast {
   position: fixed;
   top: 20px;
@@ -479,6 +644,8 @@ textarea {
   }
   nav { grid-auto-flow: column; overflow-x: auto; }
   .split, .kpi-grid, .settings-grid { grid-template-columns: 1fr; }
+  .simulation-form, .simulation-result, .custom-simulation-teams { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .custom-team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .match-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -486,6 +653,8 @@ textarea {
   main { padding: 16px; }
   .topbar { display: grid; }
   .search input { min-width: 130px; }
+  .simulation-form, .simulation-result, .custom-simulation-teams, .custom-team-grid { grid-template-columns: 1fr; }
+  .simulation-actions { justify-content: flex-start; }
   .match-form { grid-template-columns: 1fr; }
   .detail-grid { grid-template-columns: 1fr; }
 }

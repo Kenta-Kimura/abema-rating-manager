@@ -8881,60 +8881,6 @@
     },
     {
       "date": "",
-      "tournament": "第5回",
-      "stage": "試合193",
-      "teamA": "",
-      "playerA": "稲葉陽",
-      "teamB": "",
-      "playerB": "斎藤慎太郎",
-      "sente": "",
-      "winner": "D",
-      "aWins": 0,
-      "bWins": 0,
-      "aBefore": 0,
-      "bBefore": 0,
-      "aAfter": 0,
-      "bAfter": 0,
-      "note": ""
-    },
-    {
-      "date": "",
-      "tournament": "第5回",
-      "stage": "試合194",
-      "teamA": "",
-      "playerA": "服部慎一郎",
-      "teamB": "",
-      "playerB": "木村一基",
-      "sente": "",
-      "winner": "D",
-      "aWins": 0,
-      "bWins": 0,
-      "aBefore": 0,
-      "bBefore": 0,
-      "aAfter": 0,
-      "bAfter": 0,
-      "note": ""
-    },
-    {
-      "date": "",
-      "tournament": "第5回",
-      "stage": "試合195",
-      "teamA": "",
-      "playerA": "出口若武",
-      "teamB": "",
-      "playerB": "佐々木勇気",
-      "sente": "",
-      "winner": "D",
-      "aWins": 0,
-      "bWins": 0,
-      "aBefore": 0,
-      "bBefore": 0,
-      "aAfter": 0,
-      "bAfter": 0,
-      "note": ""
-    },
-    {
-      "date": "",
       "tournament": "第6回",
       "stage": "予選 リーグA 一組 1局",
       "teamA": "",
@@ -23598,5 +23544,5 @@
     }
   ],
   "ratingFormulaVersion": 2,
-  "savedAt": "2026-05-09T23:33:28.903Z"
+  "savedAt": "2026-05-15T11:38:08.917Z"
 }
