@@ -63,6 +63,7 @@ let chartPoints = [];
 let pendingChartFrame = 0;
 let editingMatchIndex = null;
 let editingTeamMetaIndex = null;
+let matchStageTouched = false;
 let externalFileHandle = null;
 let externalSaveTimer = null;
 let simulationRunId = 0;
@@ -195,13 +196,13 @@ els.searchInput.addEventListener("input", render);
 els.tournamentSelect.addEventListener("change", renderTournaments);
 els.ratingCanvas.addEventListener("mousemove", showChartTooltip);
 els.ratingCanvas.addEventListener("mouseleave", hideChartTooltip);
-els.matchDate.addEventListener("input", () => updateDateInputState(els.matchDate));
-els.matchDate.addEventListener("change", () => updateDateInputState(els.matchDate));
+els.matchDate.addEventListener("input", handleMatchDateInput);
+els.matchDate.addEventListener("change", handleMatchDateInput);
 els.formTournament.addEventListener("input", renderFormOptions);
-els.matchStagePhaseSelect.addEventListener("change", updateMatchStageInput);
-els.matchStageTypeSelect.addEventListener("change", updateMatchStageInput);
-els.matchStageMatchSelect.addEventListener("change", updateMatchStageInput);
-els.matchStageGameSelect.addEventListener("change", updateMatchStageInput);
+els.matchStagePhaseSelect.addEventListener("change", handleMatchStageControlChange);
+els.matchStageTypeSelect.addEventListener("change", handleMatchStageControlChange);
+els.matchStageMatchSelect.addEventListener("change", handleMatchStageControlChange);
+els.matchStageGameSelect.addEventListener("change", handleMatchStageControlChange);
 els.matchTeamA.addEventListener("input", renderFormOptions);
 els.matchTeamB.addEventListener("input", renderFormOptions);
 els.teamEntryTournament.addEventListener("input", renderFormOptions);
@@ -827,6 +828,11 @@ function renderMatchStageControls() {
   updateMatchStageAvailability();
 }
 
+function handleMatchStageControlChange() {
+  matchStageTouched = true;
+  updateMatchStageInput();
+}
+
 function updateMatchStageInput() {
   updateMatchStageAvailability();
   els.matchStage.value = composeMatchStage();
@@ -1128,6 +1134,48 @@ function hideInlineSuggestions() {
 
 function updateDateInputState(input) {
   input.classList.toggle("empty-date", !input.value);
+}
+
+function handleMatchDateInput() {
+  updateDateInputState(els.matchDate);
+  autofillMatchFieldsFromDate();
+}
+
+function autofillMatchFieldsFromDate() {
+  const source = findLatestMatchForFormDate(els.matchDate.value);
+  if (!source) return;
+  let filled = false;
+  ["tournament", "stage", "teamA", "teamB"].forEach((name) => {
+    const field = els.matchForm.elements[name];
+    if (!field || !source[name]) return;
+    if (name === "stage") {
+      if (!shouldAutofillMatchStage(source.stage)) return;
+      applyMatchStageControls(source.stage);
+      matchStageTouched = true;
+      filled = true;
+      return;
+    }
+    if (normalizeName(field.value)) return;
+    field.value = source[name];
+    filled = true;
+  });
+  if (filled) renderFormOptions();
+}
+
+function shouldAutofillMatchStage(stage) {
+  if (!stage || !parseMatchStage(stage).valid) return false;
+  return !normalizeName(els.matchStage.value) || (editingMatchIndex === null && !matchStageTouched);
+}
+
+function findLatestMatchForFormDate(date) {
+  if (!date) return null;
+  for (let index = state.matches.length - 1; index >= 0; index--) {
+    if (index === editingMatchIndex) continue;
+    const match = state.matches[index];
+    if (match?.date !== date) continue;
+    if (match.tournament || match.stage || match.teamA || match.teamB) return match;
+  }
+  return null;
 }
 
 function fillCustomTeamFromFirst(side) {
@@ -2520,6 +2568,7 @@ function addMatchFromForm() {
     resetEditMode();
     els.matchForm.reset();
     applyMatchStageControls("");
+    matchStageTouched = false;
     updateDateInputState(els.matchDate);
     recompute();
     showToast("試合を更新しました");
@@ -2704,6 +2753,7 @@ function startEditMatch(index) {
   });
   updateDateInputState(els.matchDate);
   applyMatchStageControls(match.stage || "");
+  matchStageTouched = true;
   renderFormOptions();
   els.addMatchButton.textContent = "更新";
   els.cancelEditButton.hidden = false;
@@ -2715,6 +2765,7 @@ function cancelEditMatch() {
   resetEditMode();
   els.matchForm.reset();
   applyMatchStageControls("");
+  matchStageTouched = false;
   updateDateInputState(els.matchDate);
   renderFormOptions();
   showToast("編集をキャンセルしました");
@@ -2735,6 +2786,7 @@ function deleteMatch(index) {
   if (editingMatchIndex === index) {
     els.matchForm.reset();
     applyMatchStageControls("");
+    matchStageTouched = false;
     updateDateInputState(els.matchDate);
     resetEditMode();
   }
