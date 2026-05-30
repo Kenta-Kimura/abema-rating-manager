@@ -974,13 +974,14 @@ function renderSimulationConfirmedRows(games = []) {
   return games.map((game, index) => `
     <tr>
       <td>${index + 1}</td>
+      <td><strong>${escapeHtml(game.pending ? "未定局" : "確定済み対局")}</strong></td>
       <td>${escapeHtml(simulationMemberLabel(game.a))}</td>
       <td>${escapeHtml(simulationMemberLabel(game.b))}</td>
       <td><strong>${escapeHtml(game.pending ? "未定" : simulationMemberLabel(game.winner))}</strong></td>
       <td>${escapeHtml(game.pending ? "未定" : simulationMemberLabel(game.loser))}</td>
       <td>${escapeHtml(game.stageLabel)}</td>
     </tr>
-  `).join("") || emptyRow(6, "固定対象局はありません");
+  `).join("") || emptyRow(7, "固定対象局はありません");
 }
 
 function getSimulationSetup() {
