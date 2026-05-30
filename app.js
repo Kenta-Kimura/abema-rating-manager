@@ -1,5 +1,6 @@
 const STORAGE_KEY = "abema-elo-state-v1";
-const DEFAULT_EXTERNAL_JSON = "./abema-rating-data.json";
+const DEFAULT_EXTERNAL_JSON_NAME = "abema-rating-data.json";
+const DEFAULT_EXTERNAL_JSON = `./${DEFAULT_EXTERNAL_JSON_NAME}`;
 const SEARCHABLE_VIEWS = new Set(["dashboard", "tournaments", "matches"]);
 const REGIONAL_2026_TOURNAMENT = "地域2026";
 const REGIONAL_2026_DISPLAY_NAMES = {
@@ -19,15 +20,15 @@ const REGIONAL_2026_BRACKET = {
 };
 const MATCH_STAGE_PHASES = ["予選", "本選"];
 const MATCH_STAGE_TYPES = [
-  { value: "リーグA", label: "リーグA", groupRequired: true },
-  { value: "リーグB", label: "リーグB", groupRequired: true },
-  { value: "リーグC", label: "リーグC", groupRequired: true },
+  { value: "リーグA", label: "Aリーグ", groupRequired: true },
+  { value: "リーグB", label: "Bリーグ", groupRequired: true },
+  { value: "リーグC", label: "Cリーグ", groupRequired: true },
   { value: "リーグ準", label: "準決勝", groupRequired: true },
   { value: "リーグ決", label: "決勝", groupRequired: false }
 ];
 const MATCH_STAGE_MATCHES = [
-  { value: "1", label: "初戦1" },
-  { value: "2", label: "初戦2" },
+  { value: "1", label: "第1試合" },
+  { value: "2", label: "第2試合" },
   { value: "3", label: "1位決定戦" },
   { value: "4", label: "敗者復活戦" },
   { value: "5", label: "2位決定戦" }
@@ -56,14 +57,6 @@ const REGIONAL_AWARDS = [
   { key: "fightingSpirit", label: "敢闘賞" }
 ];
 
-const sampleMatches = [
-  { date: "2025-04-05", tournament: "2025", stage: "予選第1試合", teamA: "チーム藤井", playerA: "藤井聡太", teamB: "チーム永瀬", playerB: "永瀬拓矢", winner: "A", note: "" },
-  { date: "2025-04-05", tournament: "2025", stage: "予選第1試合", teamA: "チーム藤井", playerA: "佐々木大地", teamB: "チーム永瀬", playerB: "増田康宏", winner: "B", note: "" },
-  { date: "2025-04-12", tournament: "2025", stage: "予選第2試合", teamA: "チーム羽生", playerA: "羽生善治", teamB: "チーム渡辺", playerB: "渡辺明", winner: "A", note: "" },
-  { date: "2025-04-19", tournament: "2025", stage: "予選第3試合", teamA: "チーム豊島", playerA: "豊島将之", teamB: "チーム稲葉", playerB: "稲葉陽", winner: "B", note: "" },
-  { date: "2025-04-26", tournament: "2025", stage: "本戦", teamA: "チーム藤井", playerA: "藤井聡太", teamB: "チーム羽生", playerB: "羽生善治", winner: "A", note: "" }
-];
-
 const state = loadState();
 let computed = computeRatings();
 let chartPoints = [];
@@ -82,6 +75,8 @@ let regionalAwardCurrentKey = REGIONAL_AWARDS[0].key;
 let regionalAwardRenderState = null;
 let customTeamSuggestionBox = null;
 let customTeamSuggestionInput = null;
+let inlineSuggestionBox = null;
+let inlineSuggestionInput = null;
 const sortState = {
   ranking: { key: "rating", direction: "desc", touched: false },
   tournament: { key: "end", direction: "desc", touched: false },
@@ -114,6 +109,7 @@ const els = {
   ratingCanvas: document.querySelector("#ratingCanvas"),
   chartTooltip: document.querySelector("#chartTooltip"),
   matchForm: document.querySelector("#matchForm"),
+  matchDate: document.querySelector('#matchForm [name="date"]'),
   teamEntryForm: document.querySelector("#teamEntryForm"),
   formTournament: document.querySelector('#matchForm [name="tournament"]'),
   matchStage: document.querySelector('#matchForm [name="stage"]'),
@@ -139,7 +135,6 @@ const els = {
   openExternalFileButton: document.querySelector("#openExternalFileButton"),
   saveExternalFileButton: document.querySelector("#saveExternalFileButton"),
   externalFileStatus: document.querySelector("#externalFileStatus"),
-  exportJsonButton: document.querySelector("#exportJsonButton"),
   exportCsvButton: document.querySelector("#exportCsvButton"),
   initialRating: document.querySelector("#initialRating"),
   kFactor: document.querySelector("#kFactor"),
@@ -200,6 +195,8 @@ els.searchInput.addEventListener("input", render);
 els.tournamentSelect.addEventListener("change", renderTournaments);
 els.ratingCanvas.addEventListener("mousemove", showChartTooltip);
 els.ratingCanvas.addEventListener("mouseleave", hideChartTooltip);
+els.matchDate.addEventListener("input", () => updateDateInputState(els.matchDate));
+els.matchDate.addEventListener("change", () => updateDateInputState(els.matchDate));
 els.formTournament.addEventListener("input", renderFormOptions);
 els.matchStagePhaseSelect.addEventListener("change", updateMatchStageInput);
 els.matchStageTypeSelect.addEventListener("change", updateMatchStageInput);
@@ -227,7 +224,6 @@ els.importPasteButton.addEventListener("click", importPastedCsv);
 els.openExternalFileButton.addEventListener("click", openExternalFile);
 els.saveExternalFileButton.addEventListener("click", saveExternalFile);
 els.renameTournamentButton.addEventListener("click", renameTournament);
-els.exportJsonButton.addEventListener("click", exportJson);
 els.exportCsvButton.addEventListener("click", exportCsv);
 els.saveSettingsButton.addEventListener("click", saveSettings);
 els.simulationTournamentSelect.addEventListener("change", () => {
@@ -247,6 +243,8 @@ els.simulationCountInput.addEventListener("input", () => {
 els.regionalForecastCountInput.addEventListener("input", renderRegionalForecastPreview);
 els.customTeamAPlayers.forEach(registerCustomTeamInput);
 els.customTeamBPlayers.forEach(registerCustomTeamInput);
+initInlineDatalistSuggestions();
+updateDateInputState(els.matchDate);
 els.copyCustomTeamAButton.addEventListener("click", () => fillCustomTeamFromFirst("A"));
 els.copyCustomTeamBButton.addEventListener("click", () => fillCustomTeamFromFirst("B"));
 els.runSimulationButton.addEventListener("click", handleSimulationButton);
@@ -258,10 +256,21 @@ document.querySelectorAll("[data-regional-award-tab]").forEach((button) => {
   button.addEventListener("click", () => setRegionalAwardTab(button.dataset.regionalAwardTab));
 });
 document.addEventListener("click", (event) => {
+  if (inlineSuggestionBox?.contains(event.target)) return;
+  if (event.target === inlineSuggestionInput) return;
+  hideInlineSuggestions();
   if (customTeamSuggestionBox?.contains(event.target)) return;
   if (els.customTeamAPlayers.includes(event.target) || els.customTeamBPlayers.includes(event.target)) return;
   hideCustomTeamSuggestions();
 });
+window.addEventListener("resize", () => {
+  hideInlineSuggestions();
+  hideCustomTeamSuggestions();
+});
+window.addEventListener("scroll", () => {
+  hideInlineSuggestions();
+  hideCustomTeamSuggestions();
+}, true);
 
 render();
 loadDefaultExternalFile();
@@ -376,6 +385,25 @@ function computeRatings() {
     const sourceBefore = isFiniteNumber(match.aBefore) && isFiniteNumber(match.bBefore);
     const aBefore = sourceBefore ? Number(match.aBefore) : a.rating;
     const bBefore = sourceBefore ? Number(match.bBefore) : b.rating;
+    if (match.winner === "U") {
+      history.push({
+        ...match,
+        index,
+        aBefore,
+        bBefore,
+        aAfter: a.rating,
+        bAfter: b.rating,
+        deltaA: 0,
+        deltaB: 0,
+        aWins: 0,
+        bWins: 0,
+        expectedA: expectedScore(aBefore, bBefore),
+        expectedB: expectedScore(bBefore, aBefore),
+        sourceBefore,
+        pending: true
+      });
+      return;
+    }
     const aWins = isFiniteNumber(match.aWins) ? Number(match.aWins) : (match.winner === "A" ? 1 : 0);
     const bWins = isFiniteNumber(match.bWins) ? Number(match.bWins) : (match.winner === "B" ? 1 : 0);
     const decisiveGames = aWins + bWins;
@@ -465,6 +493,11 @@ function renderKpis() {
   els.avgRating.textContent = ratings.length ? (ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length).toFixed(1) : "-";
 }
 
+function decisiveWinRate(row) {
+  const decisiveGames = Number(row.wins || 0) + Number(row.losses || 0);
+  return decisiveGames ? Number(row.wins || 0) / decisiveGames : 0;
+}
+
 function renderRanking() {
   const query = normalizeName(els.searchInput.value).toLowerCase();
   const rows = sortRows(computed.rankings
@@ -472,10 +505,10 @@ function renderRanking() {
     .map((player) => ({
       ...player,
       record: player.wins - player.losses,
-      winRate: player.games ? player.wins / player.games : 0
+      winRate: decisiveWinRate(player)
     })), sortState.ranking)
     .map((player, index) => {
-      const rate = player.games ? Math.round((player.wins / player.games) * 1000) / 10 : 0;
+      const rate = Math.round(decisiveWinRate(player) * 1000) / 10;
       return `<tr>
         <td><span class="rank">${index + 1}</span></td>
         <td>${escapeHtml(player.name)}</td>
@@ -563,24 +596,26 @@ function renderTournaments() {
     .map((player) => ({
       ...player,
       record: player.wins - player.losses,
-      winRate: player.games ? player.wins / player.games : 0
+      winRate: decisiveWinRate(player)
     })), sortState.tournament);
   const matches = allMatches.filter((match) => {
     const text = [match.playerA, match.playerB, match.stage, match.teamA, match.teamB].join(" ").toLowerCase();
     return text.includes(query);
   });
   const decisiveGames = matches.reduce((sum, match) => sum + Number(match.aWins || 0) + Number(match.bWins || 0), 0);
-  const noResultGames = matches.reduce((sum, match) => sum + (Number(match.aWins || 0) + Number(match.bWins || 0) === 0 ? 1 : 0), 0);
+  const noResultGames = matches.reduce((sum, match) => sum + (match.winner !== "U" && Number(match.aWins || 0) + Number(match.bWins || 0) === 0 ? 1 : 0), 0);
+  const pendingGames = matches.reduce((sum, match) => sum + (match.winner === "U" ? 1 : 0), 0);
   els.tournamentSummary.innerHTML = [
     detailCard("大会", tournament || "-"),
     detailCard("対局行", matches.length.toLocaleString("ja-JP")),
     detailCard("決着局", decisiveGames.toLocaleString("ja-JP")),
     detailCard("無勝敗", noResultGames.toLocaleString("ja-JP")),
+    detailCard("未定局", pendingGames.toLocaleString("ja-JP")),
     detailCard("参加棋士", standings.length.toLocaleString("ja-JP"))
   ].join("");
 
   els.tournamentBody.innerHTML = standings.map((player, index) => {
-    const winRate = player.games ? ((player.wins / player.games) * 100).toFixed(1) : "0.0";
+    const winRate = (decisiveWinRate(player) * 100).toFixed(1);
     return `<tr>
       <td><span class="rank">${index + 1}</span></td>
       <td>${escapeHtml(player.name)}</td>
@@ -647,6 +682,7 @@ function computeTournamentStandings(matches) {
   };
 
   matches.forEach((match) => {
+    if (match.winner === "U") return;
     const aWins = Number(match.aWins || 0);
     const bWins = Number(match.bWins || 0);
     const playedGames = aWins + bWins > 0 ? aWins + bWins : 1;
@@ -785,7 +821,7 @@ function renderMatchStageControls() {
     els.matchStagePhaseSelect.innerHTML = MATCH_STAGE_PHASES.map((phase) => `<option value="${escapeAttr(phase)}">${escapeHtml(phase)}</option>`).join("");
     els.matchStageTypeSelect.innerHTML = MATCH_STAGE_TYPES.map((type) => `<option value="${escapeAttr(type.value)}">${escapeHtml(type.label)}</option>`).join("");
     els.matchStageMatchSelect.innerHTML = MATCH_STAGE_MATCHES.map((match) => `<option value="${escapeAttr(match.value)}">${escapeHtml(match.label)}</option>`).join("");
-    els.matchStageGameSelect.innerHTML = MATCH_STAGE_GAMES.map((game) => `<option value="${escapeAttr(game)}">${escapeHtml(`${game}局`)}</option>`).join("");
+    els.matchStageGameSelect.innerHTML = MATCH_STAGE_GAMES.map((game) => `<option value="${escapeAttr(game)}">${escapeHtml(`第${game}局`)}</option>`).join("");
   }
   if (!els.matchStage.value) updateMatchStageInput();
   updateMatchStageAvailability();
@@ -824,12 +860,13 @@ function applyMatchStageControls(stage) {
 function parseMatchStage(stage) {
   const normalized = normalizeName(stage);
   const match = normalized.match(/^(予選|本選)\s+(リーグ[A-ZＡ-Ｚ]|リーグ準|リーグ決)(?:\s+([一二三四五六七八九十\d]+)組)?(?:\s+(\d+)局)?$/);
-  if (!match) return { phase: "予選", type: "リーグA", match: "1", game: "1" };
+  if (!match) return { phase: "予選", type: "リーグA", match: "1", game: "1", valid: false };
   return {
     phase: match[1],
     type: normalizeStageType(match[2]),
     match: normalizeStageNumber(match[3]) || "1",
-    game: match[4] || "1"
+    game: match[4] || "1",
+    valid: true
   };
 }
 
@@ -874,10 +911,10 @@ function renderSimulationControls() {
 
   const stages = getSimulationStageOptions(tournament);
   const previousStage = els.simulationStageSelect.value;
-  const stage = stages.includes(previousStage) ? previousStage : "";
+  const stage = stages.some((option) => option.value === previousStage) ? previousStage : "";
   els.simulationStageSelect.innerHTML = [
     '<option value="">指定なし</option>',
-    ...stages.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`)
+    ...stages.map((option) => `<option value="${escapeAttr(option.value)}">${escapeHtml(option.label)}</option>`)
   ].join("");
   els.simulationStageSelect.value = stage;
 
@@ -919,14 +956,16 @@ function renderSimulationPreview() {
   } else if (allWarnings.length) {
     els.simulationStatus.textContent = "警告を確認してください。チーム編成、レーティング、確定済み対局の整合性が必要です。";
   } else {
-    const count = setup.confirmed.games.length;
+    const fixedCount = setup.confirmed.games.filter((game) => !game.pending).length;
+    const pendingCount = setup.confirmed.games.filter((game) => game.pending).length;
+    const count = fixedCount + pendingCount;
     const total = getSimulationCount();
     els.simulationStatus.textContent = setup.teamA.team === setup.teamB.team
       ? `${total.toLocaleString("ja-JP")}回実行できます。同じチーム同士のため、確定済み対局は参照しません。`
       : setup.teamA.source === "custom" || setup.teamB.source === "custom"
       ? `${total.toLocaleString("ja-JP")}回実行できます。カスタムチームを含むため、確定済み対局は参照しません。`
       : count
-      ? `確定済み対局${count}局を固定して${total.toLocaleString("ja-JP")}回実行できます。`
+      ? `確定${fixedCount}局・未定${pendingCount}局を固定して${total.toLocaleString("ja-JP")}回実行できます。`
       : `${total.toLocaleString("ja-JP")}回実行できます。`;
   }
 }
@@ -935,13 +974,14 @@ function renderSimulationConfirmedRows(games = []) {
   return games.map((game, index) => `
     <tr>
       <td>${index + 1}</td>
+      <td><strong>${escapeHtml(game.pending ? "未定局" : "確定済み対局")}</strong></td>
       <td>${escapeHtml(simulationMemberLabel(game.a))}</td>
       <td>${escapeHtml(simulationMemberLabel(game.b))}</td>
-      <td><strong>${escapeHtml(simulationMemberLabel(game.winner))}</strong></td>
-      <td>${escapeHtml(simulationMemberLabel(game.loser))}</td>
+      <td><strong>${escapeHtml(game.pending ? "未定" : simulationMemberLabel(game.winner))}</strong></td>
+      <td>${escapeHtml(game.pending ? "未定" : simulationMemberLabel(game.loser))}</td>
       <td>${escapeHtml(game.stageLabel)}</td>
     </tr>
-  `).join("") || emptyRow(6, "確定済み対局はありません");
+  `).join("") || emptyRow(7, "固定対象局はありません");
 }
 
 function getSimulationSetup() {
@@ -962,7 +1002,8 @@ function getSimulationSetup() {
     ...validateSimulationTeam(teamA, "チームA"),
     ...validateSimulationTeam(teamB, "チームB")
   ];
-  const confirmed = teamA && teamB ? getConfirmedSimulationGames(tournament, stage, teamA, teamB) : { games: [], warnings: [] };
+  const stageFilter = getSimulationStageFilter(stage);
+  const confirmed = teamA && teamB ? getConfirmedSimulationGames(tournament, stageFilter, teamA, teamB) : { games: [], warnings: [] };
   return { tournament, stage, league, teamA, teamB, confirmed, warnings };
 }
 
@@ -1018,6 +1059,75 @@ function hideCustomTeamSuggestions() {
   if (!customTeamSuggestionBox) return;
   customTeamSuggestionBox.classList.add("hidden");
   customTeamSuggestionInput = null;
+}
+
+function initInlineDatalistSuggestions() {
+  document.querySelectorAll("input[list]").forEach((input) => {
+    input.dataset.suggestionList = input.getAttribute("list") || "";
+    input.removeAttribute("list");
+    input.setAttribute("autocomplete", "off");
+    input.addEventListener("input", () => renderInlineSuggestions(input));
+    input.addEventListener("focus", () => renderInlineSuggestions(input));
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") hideInlineSuggestions();
+    });
+  });
+}
+
+function ensureInlineSuggestionBox() {
+  if (inlineSuggestionBox) return inlineSuggestionBox;
+  inlineSuggestionBox = document.createElement("div");
+  inlineSuggestionBox.className = "inline-suggestions hidden";
+  inlineSuggestionBox.addEventListener("mousedown", (event) => event.preventDefault());
+  document.body.appendChild(inlineSuggestionBox);
+  return inlineSuggestionBox;
+}
+
+function renderInlineSuggestions(input) {
+  const listId = input.dataset.suggestionList;
+  const list = listId ? document.getElementById(listId) : null;
+  if (!list) {
+    hideInlineSuggestions();
+    return;
+  }
+  const query = normalizeName(input.value);
+  const values = Array.from(list.options)
+    .map((option) => normalizeName(option.value))
+    .filter(Boolean);
+  const matches = uniqueInOrder(values)
+    .filter((value) => !query || value.includes(query))
+    .slice(0, 8);
+  if (!matches.length) {
+    hideInlineSuggestions();
+    return;
+  }
+  const box = ensureInlineSuggestionBox();
+  const rect = input.getBoundingClientRect();
+  box.style.left = `${rect.left + window.scrollX}px`;
+  box.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  box.style.width = `${rect.width}px`;
+  box.innerHTML = matches.map((value) => `<button type="button" data-value="${escapeAttr(value)}">${escapeHtml(value)}</button>`).join("");
+  box.querySelectorAll("button").forEach((button) => {
+    button.addEventListener("click", () => {
+      input.value = button.dataset.value || "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      hideInlineSuggestions();
+      input.focus();
+    });
+  });
+  inlineSuggestionInput = input;
+  box.classList.remove("hidden");
+}
+
+function hideInlineSuggestions() {
+  if (!inlineSuggestionBox) return;
+  inlineSuggestionBox.classList.add("hidden");
+  inlineSuggestionInput = null;
+}
+
+function updateDateInputState(input) {
+  input.classList.toggle("empty-date", !input.value);
 }
 
 function fillCustomTeamFromFirst(side) {
@@ -1084,10 +1194,45 @@ function getRegionalForecastCount() {
 }
 
 function getSimulationStageOptions(tournament) {
-  return uniqueInOrder(computed.history
+  const stages = uniqueInOrder(computed.history
     .filter((match) => (match.tournament || "未分類") === tournament && match.playerB !== "__基準__")
     .map((match) => match.stage || "未分類")
     .filter(Boolean));
+  return stages.map((stage) => {
+    const group = simulationStageGroup(stage);
+    return group
+      ? { value: `group:${group}`, label: simulationStageGroupLabel(group) }
+      : { value: `stage:${stage}`, label: stage };
+  }).filter((option, index, options) => options.findIndex((item) => item.value === option.value) === index);
+}
+
+function getSimulationStageFilter(value) {
+  if (!value) return "";
+  if (value.startsWith("group:")) {
+    const prefix = value.slice("group:".length);
+    return (stage) => isStageInPrefix(stage, prefix);
+  }
+  if (value.startsWith("stage:")) return value.slice("stage:".length);
+  return value;
+}
+
+function simulationStageGroup(stage) {
+  const parsed = parseMatchStage(stage);
+  if (!parsed.valid) return "";
+  const typeMeta = MATCH_STAGE_TYPES.find((type) => type.value === parsed.type);
+  return [parsed.phase, parsed.type, typeMeta?.groupRequired ? `${parsed.match}組` : ""].filter(Boolean).join(" ");
+}
+
+function simulationStageGroupLabel(group) {
+  const parsed = parseMatchStage(`${group} 1局`);
+  if (!parsed.valid) return group;
+  const typeMeta = MATCH_STAGE_TYPES.find((type) => type.value === parsed.type);
+  const parts = [parsed.phase, typeMeta?.label || parsed.type];
+  if (typeMeta?.groupRequired) {
+    const match = MATCH_STAGE_MATCHES.find((item) => item.value === parsed.match);
+    parts.push(match?.label || `第${parsed.match}試合`);
+  }
+  return parts.join(" ");
 }
 
 function getSimulationTeamGroups() {
@@ -1350,7 +1495,8 @@ function addRegionalSampleMatch(sample, label, match, phase) {
     teamB: regionalDisplayName(match.teamB),
     score: `${match.scoreA}-${match.scoreB}`,
     winner: regionalDisplayName(match.winner),
-    fixedGames: match.fixedGames
+    fixedGames: match.fixedGames,
+    pendingGames: match.pendingGames
   };
   if (phase === "final") {
     sample.finals.push(item);
@@ -1369,7 +1515,9 @@ function simulateRegionalTeamMatch(setup, teamA, teamB, label) {
   const aWon = result.winner === "A";
   const winner = aWon ? teamA : teamB;
   const loser = aWon ? teamB : teamA;
-  return { label, teamA, teamB, winner, loser, scoreA: result.scoreA, scoreB: result.scoreB, fixedGames: confirmed.games.length, playerStats: result.playerStats };
+  const fixedGames = confirmed.games.filter((game) => !game.pending).length;
+  const pendingGames = confirmed.games.filter((game) => game.pending).length;
+  return { label, teamA, teamB, winner, loser, scoreA: result.scoreA, scoreB: result.scoreB, fixedGames, pendingGames, playerStats: result.playerStats };
 }
 
 function getRegionalConfirmedGames(setup, label, teamA, teamB) {
@@ -1586,9 +1734,10 @@ function renderRegionalFixedSummary(setup) {
   const fixedMatches = [...setup.confirmedCache.entries()]
     .map(([key, confirmed]) => ({
       label: key.split("__")[0],
-      games: confirmed.games.length
+      fixedGames: confirmed.games.filter((game) => !game.pending).length,
+      pendingGames: confirmed.games.filter((game) => game.pending).length
     }))
-    .filter((match) => match.games > 0)
+    .filter((match) => match.fixedGames + match.pendingGames > 0)
     .sort((left, right) => left.label.localeCompare(right.label, "ja"));
   if (!fixedMatches.length) {
     return `
@@ -1598,13 +1747,14 @@ function renderRegionalFixedSummary(setup) {
       </div>
     `;
   }
-  const fixedTotal = fixedMatches.reduce((sum, match) => sum + match.games, 0);
+  const fixedTotal = fixedMatches.reduce((sum, match) => sum + match.fixedGames, 0);
+  const pendingTotal = fixedMatches.reduce((sum, match) => sum + match.pendingGames, 0);
   return `
     <div class="regional-fixed-summary">
-      <strong>確定済み対局を反映</strong>
-      <span>${fixedMatches.length}カード / ${fixedTotal}局を優勝予測全体に固定しています</span>
+      <strong>固定対局を反映</strong>
+      <span>${fixedMatches.length}カード / 確定${fixedTotal}局 / 未定${pendingTotal}局を優勝予測全体に固定しています</span>
       <div>
-        ${fixedMatches.map((match) => `<em>${escapeHtml(match.label)}: ${match.games}局</em>`).join("")}
+        ${fixedMatches.map((match) => `<em>${escapeHtml(match.label)}: 確定${match.fixedGames}局 / 未定${match.pendingGames}局</em>`).join("")}
       </div>
     </div>
   `;
@@ -1657,7 +1807,7 @@ function formatRegionalAverage(value, count) {
 
 function regionalDisplayName(teamOrName) {
   const name = typeof teamOrName === "string" ? teamOrName : teamOrName?.team;
-  return REGIONAL_2026_DISPLAY_NAMES[name] || name || "";
+  return name || "";
 }
 
 async function runTeamSimulation() {
@@ -1747,7 +1897,7 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
 
   fixedGames.forEach((fixed) => {
     games++;
-    const aWon = fixed.winner.side === "A";
+    const aWon = fixed.pending ? Math.random() < expectedScore(fixed.a.rating, fixed.b.rating) : fixed.winner.side === "A";
     const winnerMember = aWon ? fixed.a : fixed.b;
     decidingWinnerKey = winnerMember.statKey;
     if (aWon) scoreA++;
@@ -1764,7 +1914,10 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
       stage2ActiveSide = aWon ? "A" : "B";
       stage2Active = aWon ? fixed.a : fixed.b;
     }
-    if (keepLog) log.push(`確定 第${games}局 ${simulationMemberLabel(fixed.a)} vs ${simulationMemberLabel(fixed.b)}: ${simulationMemberLabel(fixed.winner)}勝ち（${fixed.stageLabel}）`);
+    if (keepLog) {
+      const label = fixed.pending ? "未定" : "確定";
+      log.push(`${label} 第${games}局 ${simulationMemberLabel(fixed.a)} vs ${simulationMemberLabel(fixed.b)}: ${simulationMemberLabel(winnerMember)}勝ち（${fixed.stageLabel}）`);
+    }
   });
 
   if (!aliveA.size || !aliveB.size) {
@@ -1849,12 +2002,12 @@ function getConfirmedSimulationGames(tournament, stage, teamA, teamB) {
       const matchStage = match.stage || "未分類";
       return typeof stage === "function" ? stage(matchStage) : matchStage === stage;
     })
-    .filter((match) => match.winner === "A" || match.winner === "B");
+    .filter((match) => match.winner === "A" || match.winner === "B" || match.winner === "U");
   const raw = sourceMatches
     .map((match) => {
       const oriented = orientSimulationMatch(match, teamAPlayers, teamBPlayers);
       if (!oriented && isRelevantSimulationMatch(match, teamA, teamB, teamAPlayers, teamBPlayers)) {
-        warnings.push(`確定済み対局${match.index + 1}: チーム構成外の棋士が含まれています（${match.playerA} vs ${match.playerB}）。`);
+        warnings.push(`固定対象局${match.index + 1}: チーム構成外の棋士が含まれています（${match.playerA} vs ${match.playerB}）。`);
       }
       return oriented;
     })
@@ -1881,9 +2034,11 @@ function getConfirmedSimulationGames(tournament, stage, teamA, teamB) {
     } else {
       stage2Started = true;
     }
-    if (game.winner.side === "A") alive.B.delete(game.b.statKey);
-    else alive.A.delete(game.a.statKey);
-    issues.forEach((issue) => warnings.push(`確定済み対局${game.order}: ${issue}`));
+    if (!game.pending) {
+      if (game.winner.side === "A") alive.B.delete(game.b.statKey);
+      else alive.A.delete(game.a.statKey);
+    }
+    issues.forEach((issue) => warnings.push(`固定対象局${game.order}: ${issue}`));
     return {
       ...game,
       stage: stageNumber,
@@ -1908,12 +2063,13 @@ function orientSimulationMatch(match, teamAPlayers, teamBPlayers) {
     return simulationFixedGame(match, teamAPlayers.get(playerA), teamBPlayers.get(playerB), match.winner);
   }
   if (teamAPlayers.has(playerB) && teamBPlayers.has(playerA)) {
-    return simulationFixedGame(match, teamAPlayers.get(playerB), teamBPlayers.get(playerA), match.winner === "A" ? "B" : "A");
+    return simulationFixedGame(match, teamAPlayers.get(playerB), teamBPlayers.get(playerA), match.winner === "U" ? "U" : match.winner === "A" ? "B" : "A");
   }
   return null;
 }
 
 function simulationFixedGame(match, a, b, winnerSide) {
+  const pending = winnerSide === "U";
   const winner = winnerSide === "A" ? a : b;
   const loser = winnerSide === "A" ? b : a;
   return {
@@ -1921,8 +2077,9 @@ function simulationFixedGame(match, a, b, winnerSide) {
     index: match.index,
     a,
     b,
-    winner: { ...winner, side: winnerSide },
-    loser,
+    pending,
+    winner: pending ? null : { ...winner, side: winnerSide },
+    loser: pending ? null : loser,
     winnerSide
   };
 }
@@ -2072,7 +2229,7 @@ function renderPlayerDetail() {
   const opponents = computePlayerOpponents(player, playerMatches);
   const tournaments = computePlayerTournaments(player.name, playerMatches);
   const ratingRows = computePlayerRatingRows(player.name, playerMatches);
-  const winRate = player.games ? ((player.wins / player.games) * 100).toFixed(1) : "0.0";
+  const winRate = (decisiveWinRate(player) * 100).toFixed(1);
   const rank = player.rank ? `${player.rank}位` : "-";
   els.playerDetail.innerHTML = `
     <div class="detail-grid">
@@ -2126,6 +2283,7 @@ function computePlayerOpponents(player, matches) {
     });
   });
   matches.forEach((match) => {
+    if (match.winner === "U") return;
     const isA = match.playerA === player.name;
     const opponentName = isA ? match.playerB : match.playerA;
     const opponent = computed.players.get(opponentName);
@@ -2153,6 +2311,7 @@ function computePlayerTournaments(playerName, matches) {
   const tournaments = new Map();
   const tournamentOrder = getTournamentOrder();
   matches.forEach((match) => {
+    if (match.winner === "U") return;
     const isA = match.playerA === playerName;
     const tournament = match.tournament || "未分類";
     if (!tournaments.has(tournament)) {
@@ -2179,7 +2338,7 @@ function computePlayerTournaments(playerName, matches) {
     row.losses += ownLosses;
     row.draws += Math.max(0, playedGames - ownWins - ownLosses);
     row.games += playedGames;
-    row.winRate = row.games ? row.wins / row.games : 0;
+    row.winRate = decisiveWinRate(row);
     row.delta = Math.round((row.end - row.start) * 10) / 10;
     row.record = row.wins - row.losses;
   });
@@ -2189,6 +2348,7 @@ function computePlayerTournaments(playerName, matches) {
 function computePlayerRatingRows(playerName, matches) {
   const rows = new Map();
   matches.forEach((match) => {
+    if (match.winner === "U") return;
     const isA = match.playerA === playerName;
     const tournament = match.tournament || "未分類";
     if (!rows.has(tournament)) {
@@ -2352,15 +2512,26 @@ function addMatchFromForm() {
   const cleaned = cleanMatch(data);
   if (editingMatchIndex === null) {
     state.matches.push(cleaned);
+    recompute();
+    clearMatchPlayerInputs();
     showToast("試合を追加しました");
   } else {
     state.matches[editingMatchIndex] = cleaned;
     resetEditMode();
+    els.matchForm.reset();
+    applyMatchStageControls("");
+    updateDateInputState(els.matchDate);
+    recompute();
     showToast("試合を更新しました");
   }
-  els.matchForm.reset();
-  applyMatchStageControls("");
-  recompute();
+}
+
+function clearMatchPlayerInputs() {
+  els.matchForm.elements.playerA.value = "";
+  els.matchForm.elements.playerB.value = "";
+  updateDateInputState(els.matchDate);
+  hideInlineSuggestions();
+  renderFormOptions();
 }
 
 function addTeamEntryFromForm() {
@@ -2531,6 +2702,7 @@ function startEditMatch(index) {
     const field = els.matchForm.elements[name];
     if (field) field.value = value;
   });
+  updateDateInputState(els.matchDate);
   applyMatchStageControls(match.stage || "");
   renderFormOptions();
   els.addMatchButton.textContent = "更新";
@@ -2543,6 +2715,7 @@ function cancelEditMatch() {
   resetEditMode();
   els.matchForm.reset();
   applyMatchStageControls("");
+  updateDateInputState(els.matchDate);
   renderFormOptions();
   showToast("編集をキャンセルしました");
 }
@@ -2562,6 +2735,7 @@ function deleteMatch(index) {
   if (editingMatchIndex === index) {
     els.matchForm.reset();
     applyMatchStageControls("");
+    updateDateInputState(els.matchDate);
     resetEditMode();
   }
   recompute();
@@ -2786,8 +2960,8 @@ function mapCsvRow(headers, items) {
 
 function cleanMatch(match) {
   const winner = normalizeWinner(match.winner, match.playerA, match.playerB);
-  const aWins = isFiniteNumber(match.aWins) ? Number(match.aWins) : (winner === "A" ? 1 : 0);
-  const bWins = isFiniteNumber(match.bWins) ? Number(match.bWins) : (winner === "B" ? 1 : 0);
+  const aWins = winner === "U" ? 0 : isFiniteNumber(match.aWins) ? Number(match.aWins) : (winner === "A" ? 1 : 0);
+  const bWins = winner === "U" ? 0 : isFiniteNumber(match.bWins) ? Number(match.bWins) : (winner === "B" ? 1 : 0);
   const inferredSente = match.sente || (String(match.note || "").includes("A先手") ? "A" : String(match.note || "").includes("B先手") ? "B" : "");
   const note = stripSenteNote(match.note);
   return {
@@ -2885,7 +3059,7 @@ async function saveExternalFile() {
     if ("showSaveFilePicker" in window) {
       if (!externalFileHandle) {
         externalFileHandle = await window.showSaveFilePicker({
-          suggestedName: "abema-rating-data.json",
+          suggestedName: DEFAULT_EXTERNAL_JSON_NAME,
           types: [{ description: "ABEMAレーティングJSON", accept: { "application/json": [".json"] } }]
         });
       }
@@ -2894,8 +3068,9 @@ async function saveExternalFile() {
       showToast("外部JSONへ保存しました");
       return;
     }
-    exportJson();
-    updateExternalStatus("JSONを書き出しました", new Date());
+    downloadExternalJson();
+    updateExternalStatus(`${DEFAULT_EXTERNAL_JSON_NAME} を書き出しました`, new Date());
+    showToast(`${DEFAULT_EXTERNAL_JSON_NAME} を書き出しました`);
   } catch (error) {
     if (error?.name !== "AbortError") {
       console.error(error);
@@ -2963,8 +3138,8 @@ function formatDateTime(value) {
   }).format(date);
 }
 
-function exportJson() {
-  download("abema-elo-data.json", JSON.stringify(statePayload(), null, 2), "application/json");
+function downloadExternalJson() {
+  download(DEFAULT_EXTERNAL_JSON_NAME, JSON.stringify(statePayload(), null, 2), "application/json");
 }
 
 function exportCsv() {
@@ -3021,6 +3196,7 @@ function normalizeWinner(value, playerA = "", playerB = "") {
   const raw = normalizeName(value);
   const compact = raw.toLowerCase();
   if (!raw) return "";
+  if (["u", "未定", "未実施", "予定", "pending", "undecided"].includes(compact)) return "U";
   if (["a", "1", "playera", "棋士a", "先手"].includes(compact)) return "A";
   if (["b", "2", "playerb", "棋士b", "後手"].includes(compact)) return "B";
   if (["d", "draw", "引分", "引き分け", "千日手", "持将棋", "無勝敗"].includes(compact)) return "D";
@@ -3104,7 +3280,7 @@ function sortValue(row, key) {
   if (key === "tournament" && Number.isFinite(Number(row.tournamentOrder))) return Number(row.tournamentOrder);
   if (key === "score") return row.scoreValue ?? `${row.aWins || 0}-${row.bWins || 0}`;
   if (key === "record") return row.record ?? ((row.wins || 0) - (row.losses || 0));
-  if (key === "winRate") return row.winRate ?? ((row.games || 0) ? (row.wins || 0) / row.games : 0);
+  if (key === "winRate") return row.winRate ?? decisiveWinRate(row);
   if (key === "lastDelta") return row.lastDelta ?? 0;
   if (key === "delta") return row.delta ?? row.deltaA ?? 0;
   if (key === "winner") return row.winnerText ?? winnerLabel(row);
@@ -3126,6 +3302,7 @@ function compareValues(left, right) {
 function winnerLabel(match) {
   if (match.winner === "A") return match.playerA;
   if (match.winner === "B") return match.playerB;
+  if (match.winner === "U") return "未定";
   return "引分・無勝敗";
 }
 
@@ -3144,7 +3321,7 @@ function resultMatchupHtml(match) {
 function resultPlayerHtml(match, side) {
   const name = side === "A" ? match.playerA : match.playerB;
   const won = match.winner === side;
-  const mark = match.winner === "D" ? "△" : won ? "○" : "●";
+  const mark = match.winner === "U" ? "?" : match.winner === "D" ? "△" : won ? "○" : "●";
   const label = `${mark}${name}`;
   return won ? `<strong>${escapeHtml(label)}</strong>` : escapeHtml(label);
 }

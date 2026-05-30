@@ -214,12 +214,12 @@
             </section>
             <section class="panel">
               <div class="panel-head">
-                <h3>参照された確定済み対局</h3>
+                <h3>参照された確定済み対局・未定局</h3>
               </div>
               <div class="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>対局順</th><th>棋士A</th><th>棋士B</th><th>勝者</th><th>敗者</th><th>推定ステージ</th></tr>
+                    <tr><th>対局順</th><th>種別</th><th>棋士A</th><th>棋士B</th><th>勝者</th><th>敗者</th><th>推定ステージ</th></tr>
                   </thead>
                   <tbody id="simulationConfirmedBody"></tbody>
                 </table>
@@ -313,6 +313,7 @@
               </fieldset>
               <fieldset class="choice-group result-choice">
                 <legend>結果</legend>
+                <label><input type="radio" name="winner" value="U" required /> 未定</label>
                 <label><input type="radio" name="winner" value="A" required /> A勝ち</label>
                 <label><input type="radio" name="winner" value="B" /> B勝ち</label>
                 <label><input type="radio" name="winner" value="D" /> 引分・無勝敗</label>
@@ -454,15 +455,14 @@
           </section>
           <section class="panel import-panel">
             <h3>外部データファイル</h3>
-            <p>表示はブラウザ内のローカルストレージを使います。別の環境でも同じ内容を表示したい場合は、外部JSONファイルを読み込み・保存してください。同じフォルダに <code>abema-rating-data.json</code> がある場合は、ローカルサーバー起動時に自動読み込みします。ファイルを直接開いた場合は、必要に応じて下のボタンからJSONを開いてください。</p>
+            <p>表示はブラウザ内のローカルストレージを使います。別の環境でも同じ内容を表示したい場合は、同じフォルダの <code>abema-rating-data.json</code> を読み込み・保存してください。このファイルはローカルサーバー起動時に自動読み込みします。ファイルを直接開いた場合は、必要に応じて下のボタンからJSONを開いてください。</p>
             <div class="button-row">
               <button id="openExternalFileButton">外部JSONを開く</button>
               <button id="saveExternalFileButton" class="primary">外部JSONへ保存</button>
             </div>
             <p id="externalFileStatus" class="status-text">未接続 / 最終更新: -</p>
-            <p>書き出し内容は表示中の画面に関係なく同じです。JSONは全データのバックアップ、CSVは試合履歴のみを書き出します。</p>
+            <p>CSVは試合履歴のみを書き出します。全データを保存する場合は、上の外部JSONへ保存を使ってください。</p>
             <div class="button-row">
-              <button id="exportJsonButton" title="全データをJSONで書き出し">JSONを書き出し</button>
               <button id="exportCsvButton" title="試合履歴をCSVで書き出し">CSVを書き出し</button>
             </div>
           </section>
