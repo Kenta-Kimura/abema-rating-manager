@@ -34,8 +34,6 @@
               <span>検索</span>
               <input id="searchInput" type="search" placeholder="棋士・大会・チーム" />
             </label>
-            <button id="exportJsonButton" class="icon-button" title="JSONを書き出し">JSON</button>
-            <button id="exportCsvButton" class="icon-button" title="CSVを書き出し">CSV</button>
           </div>
         </header>
 
@@ -247,7 +245,6 @@
               <label class="field-label simulation-count-compact">回数<input id="regionalForecastCountInput" type="number" min="1" step="1000" value="100000" /></label>
               <p id="regionalForecastStatus" class="status-text">地域2026の8チームを使って予選突破率と優勝率を計算します。</p>
               <div id="regionalForecastWarnings" class="warning-list"></div>
-              <div id="regionalForecastSummary" class="simulation-result"></div>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -265,10 +262,17 @@
               <div class="panel-head compact-head">
                 <h3>個人賞予測</h3>
               </div>
+              <div class="award-tabs" role="tablist" aria-label="個人賞">
+                <button class="award-tab active" type="button" role="tab" aria-selected="true" data-regional-award-tab="mostWins">最多勝</button>
+                <button class="award-tab" type="button" role="tab" aria-selected="false" data-regional-award-tab="bestWinRate">最高勝率賞</button>
+                <button class="award-tab" type="button" role="tab" aria-selected="false" data-regional-award-tab="mostGames">最多対局賞</button>
+                <button class="award-tab" type="button" role="tab" aria-selected="false" data-regional-award-tab="bestPrelim">予選最高成績賞</button>
+                <button class="award-tab" type="button" role="tab" aria-selected="false" data-regional-award-tab="fightingSpirit">敢闘賞</button>
+              </div>
               <div class="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>賞</th><th>最有力</th><th>受賞率</th><th>平均勝敗</th><th>平均対局数</th><th>決定局勝ち</th></tr>
+                    <tr><th>#</th><th>候補</th><th>受賞率</th><th>平均勝敗</th><th>平均対局数</th><th>決定局勝ち</th></tr>
                   </thead>
                   <tbody id="regionalAwardBody"></tbody>
                 </table>
@@ -276,7 +280,7 @@
               <div class="panel-head compact-head">
                 <h3>サンプル1大会</h3>
               </div>
-              <ol id="regionalForecastSampleLog" class="sample-log"></ol>
+              <div id="regionalForecastSampleLog" class="sample-bracket"></div>
             </section>
           </div>
         </section>
@@ -451,6 +455,11 @@
               <button id="saveExternalFileButton" class="primary">外部JSONへ保存</button>
             </div>
             <p id="externalFileStatus" class="status-text">未接続 / 最終更新: -</p>
+            <p>書き出し内容は表示中の画面に関係なく同じです。JSONは全データのバックアップ、CSVは試合履歴のみを書き出します。</p>
+            <div class="button-row">
+              <button id="exportJsonButton" title="全データをJSONで書き出し">JSONを書き出し</button>
+              <button id="exportCsvButton" title="試合履歴をCSVで書き出し">CSVを書き出し</button>
+            </div>
           </section>
         </section>
       </main>

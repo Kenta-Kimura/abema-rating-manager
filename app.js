@@ -47,6 +47,8 @@ let simulationStopRequested = false;
 let regionalForecastRunId = 0;
 let regionalForecastRunning = false;
 let regionalForecastStopRequested = false;
+let regionalAwardCurrentKey = REGIONAL_AWARDS[0].key;
+let regionalAwardRenderState = null;
 let customTeamSuggestionBox = null;
 let customTeamSuggestionInput = null;
 const sortState = {
@@ -133,7 +135,6 @@ const els = {
   regionalForecastCountInput: document.querySelector("#regionalForecastCountInput"),
   regionalForecastStatus: document.querySelector("#regionalForecastStatus"),
   regionalForecastWarnings: document.querySelector("#regionalForecastWarnings"),
-  regionalForecastSummary: document.querySelector("#regionalForecastSummary"),
   regionalForecastBody: document.querySelector("#regionalForecastBody"),
   regionalAwardBody: document.querySelector("#regionalAwardBody"),
   regionalForecastSampleLog: document.querySelector("#regionalForecastSampleLog"),
@@ -205,6 +206,9 @@ els.runSimulationButton.addEventListener("click", handleSimulationButton);
 els.runRegionalForecastButton.addEventListener("click", handleRegionalForecastButton);
 document.querySelectorAll("[data-simulation-tab]").forEach((button) => {
   button.addEventListener("click", () => setSimulationTab(button.dataset.simulationTab));
+});
+document.querySelectorAll("[data-regional-award-tab]").forEach((button) => {
+  button.addEventListener("click", () => setRegionalAwardTab(button.dataset.regionalAwardTab));
 });
 document.addEventListener("click", (event) => {
   if (customTeamSuggestionBox?.contains(event.target)) return;
@@ -725,7 +729,9 @@ function renderSimulationControls() {
   const groups = getSimulationTeamGroups();
   const tournaments = uniqueInOrder(groups.map((group) => group.tournament));
   const previousTournament = els.simulationTournamentSelect.value;
-  const tournament = tournaments.includes(previousTournament) ? previousTournament : (tournaments[0] || "");
+  const tournament = tournaments.includes(previousTournament)
+    ? previousTournament
+    : (tournaments.includes(REGIONAL_2026_TOURNAMENT) ? REGIONAL_2026_TOURNAMENT : (tournaments[0] || ""));
   els.simulationTournamentSelect.innerHTML = tournaments.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("") || '<option value="">未登録</option>';
   els.simulationTournamentSelect.value = tournament;
 
@@ -1019,8 +1025,8 @@ function renderRegionalForecastPreview() {
   const setup = getRegionalForecastSetup();
   els.regionalForecastWarnings.innerHTML = setup.warnings.map((warning) => `<div class="warning-item">${escapeHtml(warning)}</div>`).join("");
   els.regionalForecastBody.innerHTML = emptyRow(7, "優勝予測実行後に表示します");
+  regionalAwardRenderState = null;
   els.regionalAwardBody.innerHTML = emptyRow(6, "優勝予測実行後に表示します");
-  els.regionalForecastSummary.innerHTML = "";
   els.regionalForecastSampleLog.innerHTML = "";
   if (setup.warnings.length) {
     els.regionalForecastStatus.textContent = "地域2026のチーム編成を確認してください。";
@@ -1071,8 +1077,8 @@ async function runRegionalForecast() {
   regionalForecastStopRequested = false;
   els.runRegionalForecastButton.disabled = false;
   els.runRegionalForecastButton.textContent = "停止して結果表示";
-  els.regionalForecastSummary.innerHTML = "";
   els.regionalForecastBody.innerHTML = emptyRow(7, "計算中です");
+  regionalAwardRenderState = null;
   els.regionalAwardBody.innerHTML = emptyRow(6, "計算中です");
   els.regionalForecastSampleLog.innerHTML = "";
 
@@ -1082,7 +1088,7 @@ async function runRegionalForecast() {
       const tournament = simulateRegionalTournament(setup, sample === null);
       addRegionalForecastResult(stats, tournament);
       addRegionalAwardResult(awardStats, tournament);
-      if (sample === null) sample = tournament.log;
+      if (sample === null) sample = tournament.sample;
     }
     completed = Math.min(total, done + limit);
     els.regionalForecastStatus.textContent = `${completed.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 回を実行中...`;
@@ -1134,14 +1140,43 @@ function createRegionalForecastStats(teams) {
   return stats;
 }
 
+function createRegionalAwardStats(teams) {
+  const players = new Map();
+  teams.forEach((team) => {
+    team.members.forEach((member) => {
+      if (!players.has(member.name)) {
+        players.set(member.name, {
+          name: member.name,
+          team: team.team,
+          firstTimer: isRegionalFirstTimer(member.name),
+          awards: Object.fromEntries(REGIONAL_AWARDS.map((award) => [award.key, 0])),
+          wins: 0,
+          losses: 0,
+          appearances: 0,
+          decidingWins: 0
+        });
+      }
+    });
+  });
+  return players;
+}
+
 function simulateRegionalTournament(setup, keepLog = false) {
-  const log = [];
-  const play = (label, teamA, teamB) => simulateRegionalTeamMatch(teamA, teamB, label, keepLog ? log : null);
+  const sample = { aLeague: [], bLeague: [], finals: [] };
+  const playerStats = createRegionalTournamentPlayerStats(setup.orderedTeams);
+  const play = (label, teamA, teamB, phase) => {
+    const match = simulateRegionalTeamMatch(teamA, teamB, label);
+    mergeRegionalTournamentPlayerStats(playerStats, match.playerStats, phase);
+    if (keepLog) addRegionalSampleMatch(sample, label, match, phase);
+    return match;
+  };
   const aLeague = simulateRegionalLeague("A", REGIONAL_2026_BRACKET.A, setup.teams, play);
   const bLeague = simulateRegionalLeague("B", REGIONAL_2026_BRACKET.B, setup.teams, play);
-  const semifinal1 = play("準決勝1 (A1 vs B2)", aLeague.first, bLeague.second);
-  const semifinal2 = play("準決勝2 (B1 vs A2)", bLeague.first, aLeague.second);
-  const final = play("決勝", semifinal1.winner, semifinal2.winner);
+  const semifinal1 = play("準決勝1 (A1 vs B2)", aLeague.first, bLeague.second, "final");
+  const semifinal2 = play("準決勝2 (B1 vs A2)", bLeague.first, aLeague.second, "final");
+  const final = play("決勝", semifinal1.winner, semifinal2.winner, "final");
+  const teamProgress = createRegionalTeamProgress(aLeague, bLeague, semifinal1, semifinal2, final);
+  applyRegionalTeamProgress(playerStats, teamProgress);
   return {
     aLeague,
     bLeague,
@@ -1149,34 +1184,50 @@ function simulateRegionalTournament(setup, keepLog = false) {
     finalists: [semifinal1.winner, semifinal2.winner],
     runnerUp: final.loser,
     champion: final.winner,
-    log
+    playerStats,
+    sample
   };
 }
 
 function simulateRegionalLeague(league, matches, teams, play) {
-  const firstMatch = play(`${league}リーグ 初戦1`, teams.get(matches[0][0]), teams.get(matches[0][1]));
-  const secondMatch = play(`${league}リーグ 初戦2`, teams.get(matches[1][0]), teams.get(matches[1][1]));
-  const firstPlaceMatch = play(`${league}リーグ 1位決定戦`, firstMatch.winner, secondMatch.winner);
-  const revivalMatch = play(`${league}リーグ 敗者復活戦`, firstMatch.loser, secondMatch.loser);
-  const secondPlaceMatch = play(`${league}リーグ 2位決定戦`, firstPlaceMatch.loser, revivalMatch.winner);
+  const firstMatch = play(`${league}リーグ 初戦1`, teams.get(matches[0][0]), teams.get(matches[0][1]), "prelim");
+  const secondMatch = play(`${league}リーグ 初戦2`, teams.get(matches[1][0]), teams.get(matches[1][1]), "prelim");
+  const firstPlaceMatch = play(`${league}リーグ 1位決定戦`, firstMatch.winner, secondMatch.winner, "prelim");
+  const revivalMatch = play(`${league}リーグ 敗者復活戦`, firstMatch.loser, secondMatch.loser, "prelim");
+  const secondPlaceMatch = play(`${league}リーグ 2位決定戦`, firstPlaceMatch.loser, revivalMatch.winner, "prelim");
   return {
     league,
     first: firstPlaceMatch.winner,
-    second: secondPlaceMatch.winner
+    second: secondPlaceMatch.winner,
+    eliminated: [revivalMatch.loser, secondPlaceMatch.loser]
   };
 }
 
-function simulateRegionalTeamMatch(teamA, teamB, label, log = null) {
+function addRegionalSampleMatch(sample, label, match, phase) {
+  const item = {
+    label,
+    teamA: regionalDisplayName(match.teamA),
+    teamB: regionalDisplayName(match.teamB),
+    score: `${match.scoreA}-${match.scoreB}`,
+    winner: regionalDisplayName(match.winner)
+  };
+  if (phase === "final") {
+    sample.finals.push(item);
+  } else if (label.startsWith("Aリーグ")) {
+    sample.aLeague.push(item);
+  } else if (label.startsWith("Bリーグ")) {
+    sample.bLeague.push(item);
+  }
+}
+
+function simulateRegionalTeamMatch(teamA, teamB, label) {
   const preparedA = prepareSimulationTeam(teamA, "A");
   const preparedB = prepareSimulationTeam(teamB, "B");
   const result = simulateTeamMatch(preparedA.members, preparedB.members);
   const aWon = result.winner === "A";
   const winner = aWon ? teamA : teamB;
   const loser = aWon ? teamB : teamA;
-  if (log) {
-    log.push(`${label}: ${regionalDisplayName(teamA)} ${result.scoreA}-${result.scoreB} ${regionalDisplayName(teamB)} / 勝者 ${regionalDisplayName(winner)}`);
-  }
-  return { winner, loser, scoreA: result.scoreA, scoreB: result.scoreB };
+  return { label, teamA, teamB, winner, loser, scoreA: result.scoreA, scoreB: result.scoreB, playerStats: result.playerStats };
 }
 
 function addRegionalForecastResult(stats, tournament) {
@@ -1194,20 +1245,148 @@ function addRegionalForecastResult(stats, tournament) {
   stats.get(tournament.champion.team).champion++;
 }
 
-function renderRegionalForecastResult(stats, total, sample) {
+function createRegionalTournamentPlayerStats(teams) {
+  const players = new Map();
+  teams.forEach((team) => {
+    team.members.forEach((member) => {
+      if (!players.has(member.name)) {
+        players.set(member.name, {
+          name: member.name,
+          team: team.team,
+          wins: 0,
+          losses: 0,
+          appearances: 0,
+          prelimWins: 0,
+          prelimLosses: 0,
+          prelimAppearances: 0,
+          decidingWins: 0,
+          progress: 0
+        });
+      }
+    });
+  });
+  return players;
+}
+
+function mergeRegionalTournamentPlayerStats(total, incoming, phase) {
+  incoming.forEach((row) => {
+    const target = total.get(row.name);
+    if (!target) return;
+    target.wins += row.wins;
+    target.losses += row.losses;
+    target.appearances += row.appearances;
+    target.decidingWins += row.decidingWins || 0;
+    if (phase === "prelim") {
+      target.prelimWins += row.wins;
+      target.prelimLosses += row.losses;
+      target.prelimAppearances += row.appearances;
+    }
+  });
+}
+
+function createRegionalTeamProgress(aLeague, bLeague, semifinal1, semifinal2, final) {
+  const progress = new Map();
+  [...aLeague.eliminated, ...bLeague.eliminated].forEach((team) => progress.set(team.team, 1));
+  [aLeague.first, aLeague.second, bLeague.first, bLeague.second].forEach((team) => progress.set(team.team, 2));
+  [semifinal1.loser, semifinal2.loser].forEach((team) => progress.set(team.team, 3));
+  progress.set(final.loser.team, 4);
+  progress.set(final.winner.team, 5);
+  return progress;
+}
+
+function applyRegionalTeamProgress(playerStats, teamProgress) {
+  playerStats.forEach((row) => {
+    row.progress = teamProgress.get(row.team) || 0;
+  });
+}
+
+function addRegionalAwardResult(awardStats, tournament) {
+  mergeRegionalAwardTotals(awardStats, tournament.playerStats);
+  const awards = chooseRegionalAwardWinners(tournament.playerStats);
+  awards.forEach((winner, key) => {
+    const row = awardStats.get(winner.name);
+    if (!row) return;
+    row.awards[key]++;
+  });
+}
+
+function mergeRegionalAwardTotals(awardStats, playerStats) {
+  playerStats.forEach((source) => {
+    const target = awardStats.get(source.name);
+    if (!target) return;
+    target.wins += source.wins;
+    target.losses += source.losses;
+    target.appearances += source.appearances;
+    target.decidingWins += source.decidingWins;
+  });
+}
+
+function chooseRegionalAwardWinners(playerStats) {
+  const players = [...playerStats.values()];
+  return new Map([
+    ["mostWins", chooseRegionalAwardWinner(players, "mostWins")],
+    ["bestWinRate", chooseRegionalAwardWinner(players, "bestWinRate")],
+    ["mostGames", chooseRegionalAwardWinner(players, "mostGames")],
+    ["bestPrelim", chooseRegionalAwardWinner(players, "bestPrelim")],
+    ["fightingSpirit", chooseRegionalAwardWinner(players.filter((row) => isRegionalFirstTimer(row.name)), "fightingSpirit")]
+  ].filter(([, winner]) => winner));
+}
+
+function chooseRegionalAwardWinner(players, awardKey) {
+  const eligible = players.filter((row) => {
+    if (awardKey === "bestPrelim") return row.prelimAppearances > 0;
+    return row.appearances > 0;
+  });
+  if (!eligible.length) return null;
+  const compare = regionalAwardComparator(awardKey);
+  return [...eligible].sort(compare)[0];
+}
+
+function regionalAwardComparator(awardKey) {
+  return (left, right) => {
+    const primary = regionalAwardPrimaryValue(right, awardKey) - regionalAwardPrimaryValue(left, awardKey);
+    if (primary) return primary;
+    const tieValues = regionalAwardTieValues(awardKey);
+    for (const value of tieValues) {
+      const diff = value(right) - value(left);
+      if (diff) return diff;
+    }
+    return left.name.localeCompare(right.name, "ja");
+  };
+}
+
+function regionalAwardPrimaryValue(row, awardKey) {
+  if (awardKey === "bestWinRate" || awardKey === "fightingSpirit") return row.appearances ? row.wins / row.appearances : 0;
+  if (awardKey === "mostGames") return row.appearances;
+  if (awardKey === "bestPrelim") return row.prelimWins;
+  return row.wins;
+}
+
+function regionalAwardTieValues(awardKey) {
+  const winRate = (row) => row.appearances ? row.wins / row.appearances : 0;
+  const prelimWinRate = (row) => row.prelimAppearances ? row.prelimWins / row.prelimAppearances : 0;
+  if (awardKey === "bestWinRate" || awardKey === "fightingSpirit") {
+    return [(row) => row.wins, (row) => row.progress, (row) => row.decidingWins];
+  }
+  if (awardKey === "bestPrelim") {
+    return [prelimWinRate, (row) => row.progress, (row) => row.decidingWins];
+  }
+  return [winRate, (row) => row.progress, (row) => row.decidingWins];
+}
+
+function isRegionalFirstTimer(name) {
+  return !computed.history.some((match) => {
+    if (match.playerB === "__基準__" || match.tournament === REGIONAL_2026_TOURNAMENT) return false;
+    return match.playerA === name || match.playerB === name;
+  });
+}
+
+function renderRegionalForecastResult(stats, awardStats, total, sample) {
   const rows = [...stats.values()].sort((left, right) => {
     const leagueCompare = String(left.league).localeCompare(String(right.league), "ja");
     if (leagueCompare) return leagueCompare;
     return right.champion - left.champion || right.semifinal - left.semifinal || regionalDisplayName(left.team).localeCompare(regionalDisplayName(right.team), "ja");
   });
-  const champion = [...rows].sort((left, right) => right.champion - left.champion)[0];
-  const finalist = [...rows].sort((left, right) => right.finalist - left.finalist)[0];
-  els.regionalForecastSummary.innerHTML = [
-    detailCard("優勝率トップ", `${regionalDisplayName(champion.team)} ${(champion.champion / total * 100).toFixed(2)}%`),
-    detailCard("決勝進出率トップ", `${regionalDisplayName(finalist.team)} ${(finalist.finalist / total * 100).toFixed(2)}%`),
-    detailCard("試行回数", total.toLocaleString("ja-JP")),
-    detailCard("方式", "A1-B2 / B1-A2")
-  ].join("");
   els.regionalForecastBody.innerHTML = rows.map((row) => {
     const advance = row.first + row.second;
     return `<tr>
@@ -1220,11 +1399,72 @@ function renderRegionalForecastResult(stats, total, sample) {
       <td><strong>${formatRegionalRate(row.champion, total)}</strong></td>
     </tr>`;
   }).join("");
-  els.regionalForecastSampleLog.innerHTML = sample.map((line) => `<li>${escapeHtml(line)}</li>`).join("");
+  regionalAwardRenderState = { awardStats, total };
+  renderRegionalAwardRows();
+  els.regionalForecastSampleLog.innerHTML = renderRegionalSampleBracket(sample);
+}
+
+function renderRegionalSampleBracket(sample) {
+  if (!sample) return "";
+  return `
+    <div class="sample-bracket-section">
+      <h4>Aリーグ</h4>
+      <div class="sample-bracket-grid">${renderRegionalSampleCards(sample.aLeague)}</div>
+    </div>
+    <div class="sample-bracket-section">
+      <h4>Bリーグ</h4>
+      <div class="sample-bracket-grid">${renderRegionalSampleCards(sample.bLeague)}</div>
+    </div>
+    <div class="sample-bracket-section">
+      <h4>決勝トーナメント</h4>
+      <div class="sample-bracket-grid finals-grid">${renderRegionalSampleCards(sample.finals)}</div>
+    </div>
+  `;
+}
+
+function renderRegionalSampleCards(matches = []) {
+  return matches.map((match) => `
+    <div class="sample-match-card">
+      <span>${escapeHtml(match.label)}</span>
+      <strong>${escapeHtml(match.teamA)} ${escapeHtml(match.score)} ${escapeHtml(match.teamB)}</strong>
+      <em>勝者 ${escapeHtml(match.winner)}</em>
+    </div>
+  `).join("");
+}
+
+function renderRegionalAwardRows() {
+  if (!regionalAwardRenderState) {
+    els.regionalAwardBody.innerHTML = emptyRow(6, "優勝予測実行後に表示します");
+    return;
+  }
+  const { awardStats, total } = regionalAwardRenderState;
+  const rows = [...awardStats.values()]
+    .filter((row) => regionalAwardCurrentKey !== "fightingSpirit" || row.firstTimer)
+    .sort((left, right) => {
+      const awardDiff = right.awards[regionalAwardCurrentKey] - left.awards[regionalAwardCurrentKey];
+      if (awardDiff) return awardDiff;
+      return left.name.localeCompare(right.name, "ja");
+    });
+  els.regionalAwardBody.innerHTML = rows.map((row, index) => {
+    const rank = index + 1;
+    const awardCount = row.awards[regionalAwardCurrentKey] || 0;
+    return `<tr class="${rank <= 3 ? `award-rank-row award-rank-${rank}` : ""}">
+      <td><span class="award-rank">${rank}</span></td>
+      <td><strong>${escapeHtml(row.name)}</strong><span class="muted-cell">${escapeHtml(regionalDisplayName(row.team))}${row.firstTimer ? " / 初出場" : ""}</span></td>
+      <td><strong>${formatRegionalRate(awardCount, total)}</strong></td>
+      <td>${formatRegionalAverage(row.wins, total)}-${formatRegionalAverage(row.losses, total)}</td>
+      <td>${formatRegionalAverage(row.appearances, total)}</td>
+      <td>${formatRegionalAverage(row.decidingWins, total)}</td>
+    </tr>`;
+  }).join("") || emptyRow(6, "該当者なし");
 }
 
 function formatRegionalRate(count, total) {
   return `${total ? (count / total * 100).toFixed(2) : "0.00"}%`;
+}
+
+function formatRegionalAverage(value, count) {
+  return (value / Math.max(1, count)).toFixed(1);
 }
 
 function regionalDisplayName(teamOrName) {
@@ -1315,10 +1555,13 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
   let stage2Started = false;
   let stage2ActiveSide = "";
   let stage2Active = null;
+  let decidingWinnerKey = "";
 
   fixedGames.forEach((fixed) => {
     games++;
     const aWon = fixed.winner.side === "A";
+    const winnerMember = aWon ? fixed.a : fixed.b;
+    decidingWinnerKey = winnerMember.statKey;
     if (aWon) scoreA++;
     else scoreB++;
     recordSimulationGame(playerStats, fixed.a, fixed.b, aWon ? "A" : "B", fixed.stageLabel);
@@ -1338,6 +1581,7 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
 
   if (!aliveA.size || !aliveB.size) {
     const winner = aliveA.size ? "A" : "B";
+    addSimulationDecidingWin(playerStats, decidingWinnerKey);
     if (keepLog) log.push(`確定済み対局で${winner === "A" ? "チームA" : "チームB"}勝利`);
     return { winner, games, log, playerStats, scoreA, scoreB };
   }
@@ -1352,6 +1596,8 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
       const a = aStage1[index];
       const b = bStage1[index];
       const aWon = Math.random() < expectedScore(a.rating, b.rating);
+      const winnerMember = aWon ? a : b;
+      decidingWinnerKey = winnerMember.statKey;
       games++;
       if (aWon) scoreA++;
       else scoreB++;
@@ -1364,6 +1610,7 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
 
   if (!aliveA.size || !aliveB.size) {
     const winner = aliveA.size ? "A" : "B";
+    addSimulationDecidingWin(playerStats, decidingWinnerKey);
     if (keepLog) log.push(`ステージ1で${winner === "A" ? "チームA" : "チームB"}勝利`);
     return { winner, games, log, playerStats, scoreA, scoreB };
   }
@@ -1378,6 +1625,8 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
 
   while (activeA && activeB) {
     const aWon = Math.random() < expectedScore(activeA.rating, activeB.rating);
+    const winnerMember = aWon ? activeA : activeB;
+    decidingWinnerKey = winnerMember.statKey;
     games++;
     if (aWon) scoreA++;
     else scoreB++;
@@ -1395,6 +1644,7 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
   }
 
   const winner = activeA ? "A" : "B";
+  addSimulationDecidingWin(playerStats, decidingWinnerKey);
   if (keepLog) log.push(`${winner === "A" ? "チームA" : "チームB"}勝利`);
   return { winner, games, log, playerStats, scoreA, scoreB };
 }
@@ -1500,7 +1750,8 @@ function createSimulationPlayerStats(teamA, teamB) {
       stage1Appearances: 0,
       stage1Wins: 0,
       stage2Appearances: 0,
-      stage2Wins: 0
+      stage2Wins: 0,
+      decidingWins: 0
     });
   });
   return map;
@@ -1554,6 +1805,11 @@ function addSimulationPlayerGame(row, won, stage) {
   }
 }
 
+function addSimulationDecidingWin(stats, statKey) {
+  const row = stats.get(statKey);
+  if (row) row.decidingWins++;
+}
+
 function mergeSimulationPlayerStats(total, incoming) {
   incoming.forEach((row, name) => {
     const target = total.get(name);
@@ -1565,6 +1821,7 @@ function mergeSimulationPlayerStats(total, incoming) {
     target.stage1Wins += row.stage1Wins;
     target.stage2Appearances += row.stage2Appearances;
     target.stage2Wins += row.stage2Wins;
+    target.decidingWins += row.decidingWins || 0;
   });
 }
 
@@ -1881,6 +2138,16 @@ function setSimulationTab(tab) {
     pane.classList.toggle("active-simulation-pane", active);
     pane.hidden = !active;
   });
+}
+
+function setRegionalAwardTab(tab) {
+  regionalAwardCurrentKey = tab;
+  document.querySelectorAll("[data-regional-award-tab]").forEach((button) => {
+    const active = button.dataset.regionalAwardTab === tab;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  renderRegionalAwardRows();
 }
 
 function addMatchFromForm() {
