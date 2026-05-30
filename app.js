@@ -17,6 +17,44 @@ const REGIONAL_2026_BRACKET = {
     ["北関東ブリッツァーズ", "ノース・トラッズ神戸"]
   ]
 };
+const MATCH_STAGE_PHASES = ["予選", "本選"];
+const MATCH_STAGE_TYPES = [
+  { value: "リーグA", label: "リーグA", groupRequired: true },
+  { value: "リーグB", label: "リーグB", groupRequired: true },
+  { value: "リーグC", label: "リーグC", groupRequired: true },
+  { value: "リーグ準", label: "準決勝", groupRequired: true },
+  { value: "リーグ決", label: "決勝", groupRequired: false }
+];
+const MATCH_STAGE_MATCHES = [
+  { value: "1", label: "初戦1" },
+  { value: "2", label: "初戦2" },
+  { value: "3", label: "1位決定戦" },
+  { value: "4", label: "敗者復活戦" },
+  { value: "5", label: "2位決定戦" }
+];
+const MATCH_STAGE_GAMES = Array.from({ length: 9 }, (_, index) => String(index + 1));
+const REGIONAL_STAGE_PREFIXES = {
+  "Aリーグ 初戦1": "予選 リーグA 1組",
+  "Aリーグ 初戦2": "予選 リーグA 2組",
+  "Aリーグ 1位決定戦": "予選 リーグA 3組",
+  "Aリーグ 敗者復活戦": "予選 リーグA 4組",
+  "Aリーグ 2位決定戦": "予選 リーグA 5組",
+  "Bリーグ 初戦1": "予選 リーグB 1組",
+  "Bリーグ 初戦2": "予選 リーグB 2組",
+  "Bリーグ 1位決定戦": "予選 リーグB 3組",
+  "Bリーグ 敗者復活戦": "予選 リーグB 4組",
+  "Bリーグ 2位決定戦": "予選 リーグB 5組",
+  "準決勝1 (A1 vs B2)": "本選 リーグ準 1組",
+  "準決勝2 (B1 vs A2)": "本選 リーグ準 2組",
+  "決勝": "本選 リーグ決"
+};
+const REGIONAL_AWARDS = [
+  { key: "mostWins", label: "最多勝" },
+  { key: "bestWinRate", label: "最高勝率賞" },
+  { key: "mostGames", label: "最多対局賞" },
+  { key: "bestPrelim", label: "予選最高成績賞" },
+  { key: "fightingSpirit", label: "敢闘賞" }
+];
 
 const sampleMatches = [
   { date: "2025-04-05", tournament: "2025", stage: "予選第1試合", teamA: "チーム藤井", playerA: "藤井聡太", teamB: "チーム永瀬", playerB: "永瀬拓矢", winner: "A", note: "" },
@@ -29,6 +67,7 @@ const sampleMatches = [
 const state = loadState();
 let computed = computeRatings();
 let chartPoints = [];
+let pendingChartFrame = 0;
 let editingMatchIndex = null;
 let editingTeamMetaIndex = null;
 let externalFileHandle = null;
@@ -39,6 +78,8 @@ let simulationStopRequested = false;
 let regionalForecastRunId = 0;
 let regionalForecastRunning = false;
 let regionalForecastStopRequested = false;
+let regionalAwardCurrentKey = REGIONAL_AWARDS[0].key;
+let regionalAwardRenderState = null;
 let customTeamSuggestionBox = null;
 let customTeamSuggestionInput = null;
 const sortState = {
@@ -75,9 +116,18 @@ const els = {
   matchForm: document.querySelector("#matchForm"),
   teamEntryForm: document.querySelector("#teamEntryForm"),
   formTournament: document.querySelector('#matchForm [name="tournament"]'),
+  matchStage: document.querySelector('#matchForm [name="stage"]'),
+  matchStagePhaseSelect: document.querySelector("#matchStagePhaseSelect"),
+  matchStageTypeSelect: document.querySelector("#matchStageTypeSelect"),
+  matchStageMatchSelect: document.querySelector("#matchStageMatchSelect"),
+  matchStageGameSelect: document.querySelector("#matchStageGameSelect"),
+  matchTeamA: document.querySelector('#matchForm [name="teamA"]'),
+  matchTeamB: document.querySelector('#matchForm [name="teamB"]'),
   teamEntryTournament: document.querySelector('#teamEntryForm [name="tournament"]'),
   tournamentOptions: document.querySelector("#tournamentOptions"),
   teamOptions: document.querySelector("#teamOptions"),
+  matchPlayerAOptions: document.querySelector("#matchPlayerAOptions"),
+  matchPlayerBOptions: document.querySelector("#matchPlayerBOptions"),
   playerOptions: document.querySelector("#playerOptions"),
   addMatchButton: document.querySelector("#addMatchButton"),
   addTeamEntryButton: document.querySelector("#addTeamEntryButton"),
@@ -122,10 +172,12 @@ const els = {
   simulationPlayerStatsBBody: document.querySelector("#simulationPlayerStatsBBody"),
   simulationSampleLog: document.querySelector("#simulationSampleLog"),
   runRegionalForecastButton: document.querySelector("#runRegionalForecastButton"),
+  regionalForecastCountInput: document.querySelector("#regionalForecastCountInput"),
   regionalForecastStatus: document.querySelector("#regionalForecastStatus"),
   regionalForecastWarnings: document.querySelector("#regionalForecastWarnings"),
-  regionalForecastSummary: document.querySelector("#regionalForecastSummary"),
+  regionalForecastFixedSummary: document.querySelector("#regionalForecastFixedSummary"),
   regionalForecastBody: document.querySelector("#regionalForecastBody"),
+  regionalAwardBody: document.querySelector("#regionalAwardBody"),
   regionalForecastSampleLog: document.querySelector("#regionalForecastSampleLog"),
   customTeamABox: document.querySelector("#customTeamABox"),
   customTeamBBox: document.querySelector("#customTeamBBox"),
@@ -149,15 +201,21 @@ els.tournamentSelect.addEventListener("change", renderTournaments);
 els.ratingCanvas.addEventListener("mousemove", showChartTooltip);
 els.ratingCanvas.addEventListener("mouseleave", hideChartTooltip);
 els.formTournament.addEventListener("input", renderFormOptions);
+els.matchStagePhaseSelect.addEventListener("change", updateMatchStageInput);
+els.matchStageTypeSelect.addEventListener("change", updateMatchStageInput);
+els.matchStageMatchSelect.addEventListener("change", updateMatchStageInput);
+els.matchStageGameSelect.addEventListener("change", updateMatchStageInput);
+els.matchTeamA.addEventListener("input", renderFormOptions);
+els.matchTeamB.addEventListener("input", renderFormOptions);
 els.teamEntryTournament.addEventListener("input", renderFormOptions);
 els.playerDetailSelect.addEventListener("change", () => {
   renderPlayerDetail();
-  drawChart();
+  scheduleChartDraw();
 });
 els.playerDetailSelect.addEventListener("input", () => {
   if (computed.players.has(els.playerDetailSelect.value)) {
     renderPlayerDetail();
-    drawChart();
+    scheduleChartDraw();
   }
 });
 els.addMatchButton.addEventListener("click", addMatchFromForm);
@@ -185,14 +243,20 @@ els.simulationTeamASelect.addEventListener("change", renderSimulationPreview);
 els.simulationTeamBSelect.addEventListener("change", renderSimulationPreview);
 els.simulationCountInput.addEventListener("input", () => {
   renderSimulationPreview();
-  renderRegionalForecastPreview();
 });
+els.regionalForecastCountInput.addEventListener("input", renderRegionalForecastPreview);
 els.customTeamAPlayers.forEach(registerCustomTeamInput);
 els.customTeamBPlayers.forEach(registerCustomTeamInput);
 els.copyCustomTeamAButton.addEventListener("click", () => fillCustomTeamFromFirst("A"));
 els.copyCustomTeamBButton.addEventListener("click", () => fillCustomTeamFromFirst("B"));
 els.runSimulationButton.addEventListener("click", handleSimulationButton);
 els.runRegionalForecastButton.addEventListener("click", handleRegionalForecastButton);
+document.querySelectorAll("[data-simulation-tab]").forEach((button) => {
+  button.addEventListener("click", () => setSimulationTab(button.dataset.simulationTab));
+});
+document.querySelectorAll("[data-regional-award-tab]").forEach((button) => {
+  button.addEventListener("click", () => setRegionalAwardTab(button.dataset.regionalAwardTab));
+});
 document.addEventListener("click", (event) => {
   if (customTeamSuggestionBox?.contains(event.target)) return;
   if (els.customTeamAPlayers.includes(event.target) || els.customTeamBPlayers.includes(event.target)) return;
@@ -383,8 +447,8 @@ function render() {
   renderSimulationControls();
   renderSimulationPreview();
   renderRegionalForecastPreview();
-  drawChart();
   renderPlayerDetail();
+  scheduleChartDraw();
 }
 
 function renderSettings() {
@@ -703,16 +767,108 @@ function renderFormOptions() {
       .filter(Boolean)
   ]);
   const players = [...computed.players.keys()].sort((a, b) => a.localeCompare(b, "ja"));
+  const playerOptions = players.map((name) => `<option value="${escapeAttr(name)}"></option>`).join("");
+  const playerAOptions = getMatchPlayerOptions(selectedTournament, els.matchTeamA.value, players)
+    .map((name) => `<option value="${escapeAttr(name)}"></option>`).join("");
+  const playerBOptions = getMatchPlayerOptions(selectedTournament, els.matchTeamB.value, players)
+    .map((name) => `<option value="${escapeAttr(name)}"></option>`).join("");
   els.tournamentOptions.innerHTML = tournaments.map((name) => `<option value="${escapeAttr(name)}"></option>`).join("");
   els.teamOptions.innerHTML = teams.map((name) => `<option value="${escapeAttr(name)}"></option>`).join("");
-  els.playerOptions.innerHTML = players.map((name) => `<option value="${escapeAttr(name)}"></option>`).join("");
+  els.matchPlayerAOptions.innerHTML = playerAOptions;
+  els.matchPlayerBOptions.innerHTML = playerBOptions;
+  els.playerOptions.innerHTML = playerOptions;
+  renderMatchStageControls();
+}
+
+function renderMatchStageControls() {
+  if (!els.matchStagePhaseSelect.options.length) {
+    els.matchStagePhaseSelect.innerHTML = MATCH_STAGE_PHASES.map((phase) => `<option value="${escapeAttr(phase)}">${escapeHtml(phase)}</option>`).join("");
+    els.matchStageTypeSelect.innerHTML = MATCH_STAGE_TYPES.map((type) => `<option value="${escapeAttr(type.value)}">${escapeHtml(type.label)}</option>`).join("");
+    els.matchStageMatchSelect.innerHTML = MATCH_STAGE_MATCHES.map((match) => `<option value="${escapeAttr(match.value)}">${escapeHtml(match.label)}</option>`).join("");
+    els.matchStageGameSelect.innerHTML = MATCH_STAGE_GAMES.map((game) => `<option value="${escapeAttr(game)}">${escapeHtml(`${game}局`)}</option>`).join("");
+  }
+  if (!els.matchStage.value) updateMatchStageInput();
+  updateMatchStageAvailability();
+}
+
+function updateMatchStageInput() {
+  updateMatchStageAvailability();
+  els.matchStage.value = composeMatchStage();
+}
+
+function updateMatchStageAvailability() {
+  const type = MATCH_STAGE_TYPES.find((item) => item.value === els.matchStageTypeSelect.value) || MATCH_STAGE_TYPES[0];
+  els.matchStageMatchSelect.disabled = !type.groupRequired;
+}
+
+function composeMatchStage() {
+  const phase = els.matchStagePhaseSelect.value || MATCH_STAGE_PHASES[0];
+  const type = els.matchStageTypeSelect.value || MATCH_STAGE_TYPES[0].value;
+  const game = els.matchStageGameSelect.value || "1";
+  const typeMeta = MATCH_STAGE_TYPES.find((item) => item.value === type) || MATCH_STAGE_TYPES[0];
+  return [phase, type, typeMeta.groupRequired ? `${els.matchStageMatchSelect.value || "1"}組` : "", `${game}局`]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function applyMatchStageControls(stage) {
+  if (!els.matchStagePhaseSelect.options.length) renderMatchStageControls();
+  const parsed = parseMatchStage(stage);
+  els.matchStagePhaseSelect.value = parsed.phase;
+  els.matchStageTypeSelect.value = parsed.type;
+  els.matchStageMatchSelect.value = parsed.match;
+  els.matchStageGameSelect.value = parsed.game;
+  updateMatchStageInput();
+}
+
+function parseMatchStage(stage) {
+  const normalized = normalizeName(stage);
+  const match = normalized.match(/^(予選|本選)\s+(リーグ[A-ZＡ-Ｚ]|リーグ準|リーグ決)(?:\s+([一二三四五六七八九十\d]+)組)?(?:\s+(\d+)局)?$/);
+  if (!match) return { phase: "予選", type: "リーグA", match: "1", game: "1" };
+  return {
+    phase: match[1],
+    type: normalizeStageType(match[2]),
+    match: normalizeStageNumber(match[3]) || "1",
+    game: match[4] || "1"
+  };
+}
+
+function normalizeStageType(value) {
+  const normalized = normalizeName(value).replace("リーグＡ", "リーグA").replace("リーグＢ", "リーグB").replace("リーグＣ", "リーグC");
+  return MATCH_STAGE_TYPES.some((type) => type.value === normalized) ? normalized : "リーグA";
+}
+
+function normalizeStageNumber(value) {
+  const text = normalizeName(value);
+  const kanji = { "一": "1", "二": "2", "三": "3", "四": "4", "五": "5" };
+  return kanji[text] || text.replace(/[^\d]/g, "");
+}
+
+function getMatchPlayerOptions(tournament, team, allPlayers) {
+  const selectedTeam = normalizeName(team);
+  const selectedTournament = normalizeName(tournament);
+  if (!selectedTeam) return allPlayers;
+  const members = uniqueInOrder([
+    ...(state.rankingMeta || [])
+      .filter((item) => (!selectedTournament || normalizeName(item.tournament) === selectedTournament) && normalizeName(item.team) === selectedTeam)
+      .map((item) => item.player),
+    ...state.matches
+      .filter((match) => !selectedTournament || normalizeName(match.tournament) === selectedTournament)
+      .flatMap((match) => [
+        normalizeName(match.teamA) === selectedTeam ? match.playerA : "",
+        normalizeName(match.teamB) === selectedTeam ? match.playerB : ""
+      ])
+  ].map((name) => normalizeName(name)).filter(Boolean));
+  return members.sort((a, b) => a.localeCompare(b, "ja"));
 }
 
 function renderSimulationControls() {
   const groups = getSimulationTeamGroups();
   const tournaments = uniqueInOrder(groups.map((group) => group.tournament));
   const previousTournament = els.simulationTournamentSelect.value;
-  const tournament = tournaments.includes(previousTournament) ? previousTournament : (tournaments[0] || "");
+  const tournament = tournaments.includes(previousTournament)
+    ? previousTournament
+    : (tournaments.includes(REGIONAL_2026_TOURNAMENT) ? REGIONAL_2026_TOURNAMENT : (tournaments[0] || ""));
   els.simulationTournamentSelect.innerHTML = tournaments.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("") || '<option value="">未登録</option>';
   els.simulationTournamentSelect.value = tournament;
 
@@ -917,10 +1073,14 @@ function prepareSimulationTeam(team, side) {
   };
 }
 
-function getSimulationCount() {
-  const value = Math.round(Number(els.simulationCountInput.value || 100000));
+function getSimulationCount(input = els.simulationCountInput) {
+  const value = Math.round(Number(input.value || 100000));
   if (!Number.isFinite(value)) return 100000;
   return Math.max(1, value);
+}
+
+function getRegionalForecastCount() {
+  return getSimulationCount(els.regionalForecastCountInput);
 }
 
 function getSimulationStageOptions(tournament) {
@@ -1001,13 +1161,15 @@ function validateSimulationTeam(team, label) {
 function renderRegionalForecastPreview() {
   const setup = getRegionalForecastSetup();
   els.regionalForecastWarnings.innerHTML = setup.warnings.map((warning) => `<div class="warning-item">${escapeHtml(warning)}</div>`).join("");
+  els.regionalForecastFixedSummary.innerHTML = "";
   els.regionalForecastBody.innerHTML = emptyRow(7, "優勝予測実行後に表示します");
-  els.regionalForecastSummary.innerHTML = "";
+  regionalAwardRenderState = null;
+  els.regionalAwardBody.innerHTML = emptyRow(6, "優勝予測実行後に表示します");
   els.regionalForecastSampleLog.innerHTML = "";
   if (setup.warnings.length) {
     els.regionalForecastStatus.textContent = "地域2026のチーム編成を確認してください。";
   } else {
-    els.regionalForecastStatus.textContent = `${getSimulationCount().toLocaleString("ja-JP")}回実行できます。予選A/Bリーグと仮定決勝トーナメントをまとめて計算します。`;
+    els.regionalForecastStatus.textContent = `${getRegionalForecastCount().toLocaleString("ja-JP")}回実行できます。予選A/Bリーグと仮定決勝トーナメントをまとめて計算します。`;
   }
 }
 
@@ -1016,6 +1178,7 @@ function getRegionalForecastSetup() {
     .filter((group) => group.tournament === REGIONAL_2026_TOURNAMENT)
     .map((group) => [group.team, group]));
   const orderedTeams = getRegionalBracketTeamNames().map((name) => teamMap.get(name)).filter(Boolean);
+  const confirmedCache = new Map();
   const warnings = [];
   getRegionalBracketTeamNames().forEach((name) => {
     const team = teamMap.get(name);
@@ -1025,7 +1188,7 @@ function getRegionalForecastSetup() {
     }
     warnings.push(...validateSimulationTeam(team, regionalDisplayName(team)).map((warning) => warning.replace(/^チームA|^チームB/, "チーム")));
   });
-  return { teams: teamMap, orderedTeams, warnings };
+  return { teams: teamMap, orderedTeams, confirmedCache, warnings };
 }
 
 function getRegionalBracketTeamNames() {
@@ -1041,19 +1204,22 @@ async function runRegionalForecast() {
     return;
   }
 
-  const total = getSimulationCount();
-  els.simulationCountInput.value = total;
+  const total = getRegionalForecastCount();
+  els.regionalForecastCountInput.value = total;
   const chunkSize = 500;
   const runId = ++regionalForecastRunId;
   let completed = 0;
   const stats = createRegionalForecastStats(setup.orderedTeams);
+  const awardStats = createRegionalAwardStats(setup.orderedTeams);
   let sample = null;
   regionalForecastRunning = true;
   regionalForecastStopRequested = false;
   els.runRegionalForecastButton.disabled = false;
   els.runRegionalForecastButton.textContent = "停止して結果表示";
-  els.regionalForecastSummary.innerHTML = "";
   els.regionalForecastBody.innerHTML = emptyRow(7, "計算中です");
+  els.regionalForecastFixedSummary.innerHTML = "";
+  regionalAwardRenderState = null;
+  els.regionalAwardBody.innerHTML = emptyRow(6, "計算中です");
   els.regionalForecastSampleLog.innerHTML = "";
 
   for (let done = 0; done < total && runId === regionalForecastRunId && !regionalForecastStopRequested; done += chunkSize) {
@@ -1061,7 +1227,8 @@ async function runRegionalForecast() {
     for (let index = 0; index < limit; index++) {
       const tournament = simulateRegionalTournament(setup, sample === null);
       addRegionalForecastResult(stats, tournament);
-      if (sample === null) sample = tournament.log;
+      addRegionalAwardResult(awardStats, tournament);
+      if (sample === null) sample = tournament.sample;
     }
     completed = Math.min(total, done + limit);
     els.regionalForecastStatus.textContent = `${completed.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 回を実行中...`;
@@ -1078,7 +1245,7 @@ async function runRegionalForecast() {
     els.regionalForecastStatus.textContent = "結果を表示するには1回以上実行してください。";
     return;
   }
-  renderRegionalForecastResult(stats, completed, sample || []);
+  renderRegionalForecastResult(stats, awardStats, completed, sample || [], setup);
   els.regionalForecastStatus.textContent = stopped
     ? `${completed.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 回で停止しました。途中結果を表示しています。`
     : "完了しました。";
@@ -1113,14 +1280,43 @@ function createRegionalForecastStats(teams) {
   return stats;
 }
 
+function createRegionalAwardStats(teams) {
+  const players = new Map();
+  teams.forEach((team) => {
+    team.members.forEach((member) => {
+      if (!players.has(member.name)) {
+        players.set(member.name, {
+          name: member.name,
+          team: team.team,
+          firstTimer: isRegionalFirstTimer(member.name),
+          awards: Object.fromEntries(REGIONAL_AWARDS.map((award) => [award.key, 0])),
+          wins: 0,
+          losses: 0,
+          appearances: 0,
+          decidingWins: 0
+        });
+      }
+    });
+  });
+  return players;
+}
+
 function simulateRegionalTournament(setup, keepLog = false) {
-  const log = [];
-  const play = (label, teamA, teamB) => simulateRegionalTeamMatch(teamA, teamB, label, keepLog ? log : null);
+  const sample = { aLeague: [], bLeague: [], finals: [] };
+  const playerStats = createRegionalTournamentPlayerStats(setup.orderedTeams);
+  const play = (label, teamA, teamB, phase) => {
+    const match = simulateRegionalTeamMatch(setup, teamA, teamB, label);
+    mergeRegionalTournamentPlayerStats(playerStats, match.playerStats, phase);
+    if (keepLog) addRegionalSampleMatch(sample, label, match, phase);
+    return match;
+  };
   const aLeague = simulateRegionalLeague("A", REGIONAL_2026_BRACKET.A, setup.teams, play);
   const bLeague = simulateRegionalLeague("B", REGIONAL_2026_BRACKET.B, setup.teams, play);
-  const semifinal1 = play("準決勝1 (A1 vs B2)", aLeague.first, bLeague.second);
-  const semifinal2 = play("準決勝2 (B1 vs A2)", bLeague.first, aLeague.second);
-  const final = play("決勝", semifinal1.winner, semifinal2.winner);
+  const semifinal1 = play("準決勝1 (A1 vs B2)", aLeague.first, bLeague.second, "final");
+  const semifinal2 = play("準決勝2 (B1 vs A2)", bLeague.first, aLeague.second, "final");
+  const final = play("決勝", semifinal1.winner, semifinal2.winner, "final");
+  const teamProgress = createRegionalTeamProgress(aLeague, bLeague, semifinal1, semifinal2, final);
+  applyRegionalTeamProgress(playerStats, teamProgress);
   return {
     aLeague,
     bLeague,
@@ -1128,34 +1324,69 @@ function simulateRegionalTournament(setup, keepLog = false) {
     finalists: [semifinal1.winner, semifinal2.winner],
     runnerUp: final.loser,
     champion: final.winner,
-    log
+    playerStats,
+    sample
   };
 }
 
 function simulateRegionalLeague(league, matches, teams, play) {
-  const firstMatch = play(`${league}リーグ 初戦1`, teams.get(matches[0][0]), teams.get(matches[0][1]));
-  const secondMatch = play(`${league}リーグ 初戦2`, teams.get(matches[1][0]), teams.get(matches[1][1]));
-  const firstPlaceMatch = play(`${league}リーグ 1位決定戦`, firstMatch.winner, secondMatch.winner);
-  const revivalMatch = play(`${league}リーグ 敗者復活戦`, firstMatch.loser, secondMatch.loser);
-  const secondPlaceMatch = play(`${league}リーグ 2位決定戦`, firstPlaceMatch.loser, revivalMatch.winner);
+  const firstMatch = play(`${league}リーグ 初戦1`, teams.get(matches[0][0]), teams.get(matches[0][1]), "prelim");
+  const secondMatch = play(`${league}リーグ 初戦2`, teams.get(matches[1][0]), teams.get(matches[1][1]), "prelim");
+  const firstPlaceMatch = play(`${league}リーグ 1位決定戦`, firstMatch.winner, secondMatch.winner, "prelim");
+  const revivalMatch = play(`${league}リーグ 敗者復活戦`, firstMatch.loser, secondMatch.loser, "prelim");
+  const secondPlaceMatch = play(`${league}リーグ 2位決定戦`, firstPlaceMatch.loser, revivalMatch.winner, "prelim");
   return {
     league,
     first: firstPlaceMatch.winner,
-    second: secondPlaceMatch.winner
+    second: secondPlaceMatch.winner,
+    eliminated: [revivalMatch.loser, secondPlaceMatch.loser]
   };
 }
 
-function simulateRegionalTeamMatch(teamA, teamB, label, log = null) {
+function addRegionalSampleMatch(sample, label, match, phase) {
+  const item = {
+    label,
+    teamA: regionalDisplayName(match.teamA),
+    teamB: regionalDisplayName(match.teamB),
+    score: `${match.scoreA}-${match.scoreB}`,
+    winner: regionalDisplayName(match.winner),
+    fixedGames: match.fixedGames
+  };
+  if (phase === "final") {
+    sample.finals.push(item);
+  } else if (label.startsWith("Aリーグ")) {
+    sample.aLeague.push(item);
+  } else if (label.startsWith("Bリーグ")) {
+    sample.bLeague.push(item);
+  }
+}
+
+function simulateRegionalTeamMatch(setup, teamA, teamB, label) {
   const preparedA = prepareSimulationTeam(teamA, "A");
   const preparedB = prepareSimulationTeam(teamB, "B");
-  const result = simulateTeamMatch(preparedA.members, preparedB.members);
+  const confirmed = getRegionalConfirmedGames(setup, label, preparedA, preparedB);
+  const result = simulateTeamMatch(preparedA.members, preparedB.members, confirmed.games);
   const aWon = result.winner === "A";
   const winner = aWon ? teamA : teamB;
   const loser = aWon ? teamB : teamA;
-  if (log) {
-    log.push(`${label}: ${regionalDisplayName(teamA)} ${result.scoreA}-${result.scoreB} ${regionalDisplayName(teamB)} / 勝者 ${regionalDisplayName(winner)}`);
+  return { label, teamA, teamB, winner, loser, scoreA: result.scoreA, scoreB: result.scoreB, fixedGames: confirmed.games.length, playerStats: result.playerStats };
+}
+
+function getRegionalConfirmedGames(setup, label, teamA, teamB) {
+  const key = `${label}__${teamA.team}__vs__${teamB.team}`;
+  if (!setup.confirmedCache.has(key)) {
+    const stagePrefix = REGIONAL_STAGE_PREFIXES[label] || "";
+    setup.confirmedCache.set(key, stagePrefix
+      ? getConfirmedSimulationGames(REGIONAL_2026_TOURNAMENT, (stage) => isStageInPrefix(stage, stagePrefix), teamA, teamB)
+      : { games: [], warnings: [] });
   }
-  return { winner, loser, scoreA: result.scoreA, scoreB: result.scoreB };
+  return setup.confirmedCache.get(key);
+}
+
+function isStageInPrefix(stage, prefix) {
+  const normalizedStage = normalizeName(stage);
+  const normalizedPrefix = normalizeName(prefix);
+  return normalizedStage === normalizedPrefix || normalizedStage.startsWith(`${normalizedPrefix} `);
 }
 
 function addRegionalForecastResult(stats, tournament) {
@@ -1173,20 +1404,148 @@ function addRegionalForecastResult(stats, tournament) {
   stats.get(tournament.champion.team).champion++;
 }
 
-function renderRegionalForecastResult(stats, total, sample) {
+function createRegionalTournamentPlayerStats(teams) {
+  const players = new Map();
+  teams.forEach((team) => {
+    team.members.forEach((member) => {
+      if (!players.has(member.name)) {
+        players.set(member.name, {
+          name: member.name,
+          team: team.team,
+          wins: 0,
+          losses: 0,
+          appearances: 0,
+          prelimWins: 0,
+          prelimLosses: 0,
+          prelimAppearances: 0,
+          decidingWins: 0,
+          progress: 0
+        });
+      }
+    });
+  });
+  return players;
+}
+
+function mergeRegionalTournamentPlayerStats(total, incoming, phase) {
+  incoming.forEach((row) => {
+    const target = total.get(row.name);
+    if (!target) return;
+    target.wins += row.wins;
+    target.losses += row.losses;
+    target.appearances += row.appearances;
+    target.decidingWins += row.decidingWins || 0;
+    if (phase === "prelim") {
+      target.prelimWins += row.wins;
+      target.prelimLosses += row.losses;
+      target.prelimAppearances += row.appearances;
+    }
+  });
+}
+
+function createRegionalTeamProgress(aLeague, bLeague, semifinal1, semifinal2, final) {
+  const progress = new Map();
+  [...aLeague.eliminated, ...bLeague.eliminated].forEach((team) => progress.set(team.team, 1));
+  [aLeague.first, aLeague.second, bLeague.first, bLeague.second].forEach((team) => progress.set(team.team, 2));
+  [semifinal1.loser, semifinal2.loser].forEach((team) => progress.set(team.team, 3));
+  progress.set(final.loser.team, 4);
+  progress.set(final.winner.team, 5);
+  return progress;
+}
+
+function applyRegionalTeamProgress(playerStats, teamProgress) {
+  playerStats.forEach((row) => {
+    row.progress = teamProgress.get(row.team) || 0;
+  });
+}
+
+function addRegionalAwardResult(awardStats, tournament) {
+  mergeRegionalAwardTotals(awardStats, tournament.playerStats);
+  const awards = chooseRegionalAwardWinners(tournament.playerStats);
+  awards.forEach((winner, key) => {
+    const row = awardStats.get(winner.name);
+    if (!row) return;
+    row.awards[key]++;
+  });
+}
+
+function mergeRegionalAwardTotals(awardStats, playerStats) {
+  playerStats.forEach((source) => {
+    const target = awardStats.get(source.name);
+    if (!target) return;
+    target.wins += source.wins;
+    target.losses += source.losses;
+    target.appearances += source.appearances;
+    target.decidingWins += source.decidingWins;
+  });
+}
+
+function chooseRegionalAwardWinners(playerStats) {
+  const players = [...playerStats.values()];
+  return new Map([
+    ["mostWins", chooseRegionalAwardWinner(players, "mostWins")],
+    ["bestWinRate", chooseRegionalAwardWinner(players, "bestWinRate")],
+    ["mostGames", chooseRegionalAwardWinner(players, "mostGames")],
+    ["bestPrelim", chooseRegionalAwardWinner(players, "bestPrelim")],
+    ["fightingSpirit", chooseRegionalAwardWinner(players.filter((row) => isRegionalFirstTimer(row.name)), "fightingSpirit")]
+  ].filter(([, winner]) => winner));
+}
+
+function chooseRegionalAwardWinner(players, awardKey) {
+  const eligible = players.filter((row) => {
+    if (awardKey === "bestPrelim") return row.prelimAppearances > 0;
+    return row.appearances > 0;
+  });
+  if (!eligible.length) return null;
+  const compare = regionalAwardComparator(awardKey);
+  return [...eligible].sort(compare)[0];
+}
+
+function regionalAwardComparator(awardKey) {
+  return (left, right) => {
+    const primary = regionalAwardPrimaryValue(right, awardKey) - regionalAwardPrimaryValue(left, awardKey);
+    if (primary) return primary;
+    const tieValues = regionalAwardTieValues(awardKey);
+    for (const value of tieValues) {
+      const diff = value(right) - value(left);
+      if (diff) return diff;
+    }
+    return left.name.localeCompare(right.name, "ja");
+  };
+}
+
+function regionalAwardPrimaryValue(row, awardKey) {
+  if (awardKey === "bestWinRate" || awardKey === "fightingSpirit") return row.appearances ? row.wins / row.appearances : 0;
+  if (awardKey === "mostGames") return row.appearances;
+  if (awardKey === "bestPrelim") return row.prelimWins;
+  return row.wins;
+}
+
+function regionalAwardTieValues(awardKey) {
+  const winRate = (row) => row.appearances ? row.wins / row.appearances : 0;
+  const prelimWinRate = (row) => row.prelimAppearances ? row.prelimWins / row.prelimAppearances : 0;
+  if (awardKey === "bestWinRate" || awardKey === "fightingSpirit") {
+    return [(row) => row.wins, (row) => row.progress, (row) => row.decidingWins];
+  }
+  if (awardKey === "bestPrelim") {
+    return [prelimWinRate, (row) => row.progress, (row) => row.decidingWins];
+  }
+  return [winRate, (row) => row.progress, (row) => row.decidingWins];
+}
+
+function isRegionalFirstTimer(name) {
+  return !computed.history.some((match) => {
+    if (match.playerB === "__基準__" || match.tournament === REGIONAL_2026_TOURNAMENT) return false;
+    return match.playerA === name || match.playerB === name;
+  });
+}
+
+function renderRegionalForecastResult(stats, awardStats, total, sample, setup) {
   const rows = [...stats.values()].sort((left, right) => {
     const leagueCompare = String(left.league).localeCompare(String(right.league), "ja");
     if (leagueCompare) return leagueCompare;
     return right.champion - left.champion || right.semifinal - left.semifinal || regionalDisplayName(left.team).localeCompare(regionalDisplayName(right.team), "ja");
   });
-  const champion = [...rows].sort((left, right) => right.champion - left.champion)[0];
-  const finalist = [...rows].sort((left, right) => right.finalist - left.finalist)[0];
-  els.regionalForecastSummary.innerHTML = [
-    detailCard("優勝率トップ", `${regionalDisplayName(champion.team)} ${(champion.champion / total * 100).toFixed(2)}%`),
-    detailCard("決勝進出率トップ", `${regionalDisplayName(finalist.team)} ${(finalist.finalist / total * 100).toFixed(2)}%`),
-    detailCard("試行回数", total.toLocaleString("ja-JP")),
-    detailCard("方式", "A1-B2 / B1-A2")
-  ].join("");
   els.regionalForecastBody.innerHTML = rows.map((row) => {
     const advance = row.first + row.second;
     return `<tr>
@@ -1199,11 +1558,101 @@ function renderRegionalForecastResult(stats, total, sample) {
       <td><strong>${formatRegionalRate(row.champion, total)}</strong></td>
     </tr>`;
   }).join("");
-  els.regionalForecastSampleLog.innerHTML = sample.map((line) => `<li>${escapeHtml(line)}</li>`).join("");
+  els.regionalForecastFixedSummary.innerHTML = renderRegionalFixedSummary(setup);
+  regionalAwardRenderState = { awardStats, total };
+  renderRegionalAwardRows();
+  els.regionalForecastSampleLog.innerHTML = renderRegionalSampleBracket(sample);
+}
+
+function renderRegionalSampleBracket(sample) {
+  if (!sample) return "";
+  return `
+    <div class="sample-bracket-section">
+      <h4>Aリーグ</h4>
+      <div class="sample-bracket-grid">${renderRegionalSampleCards(sample.aLeague)}</div>
+    </div>
+    <div class="sample-bracket-section">
+      <h4>Bリーグ</h4>
+      <div class="sample-bracket-grid">${renderRegionalSampleCards(sample.bLeague)}</div>
+    </div>
+    <div class="sample-bracket-section">
+      <h4>決勝トーナメント</h4>
+      <div class="sample-bracket-grid finals-grid">${renderRegionalSampleCards(sample.finals)}</div>
+    </div>
+  `;
+}
+
+function renderRegionalFixedSummary(setup) {
+  const fixedMatches = [...setup.confirmedCache.entries()]
+    .map(([key, confirmed]) => ({
+      label: key.split("__")[0],
+      games: confirmed.games.length
+    }))
+    .filter((match) => match.games > 0)
+    .sort((left, right) => left.label.localeCompare(right.label, "ja"));
+  if (!fixedMatches.length) {
+    return `
+      <div class="regional-fixed-summary regional-fixed-summary-empty">
+        <strong>確定済み対局なし</strong>
+        <span>登録済みの対局は固定せず、全カードを現在レーティングから試行しています</span>
+      </div>
+    `;
+  }
+  const fixedTotal = fixedMatches.reduce((sum, match) => sum + match.games, 0);
+  return `
+    <div class="regional-fixed-summary">
+      <strong>確定済み対局を反映</strong>
+      <span>${fixedMatches.length}カード / ${fixedTotal}局を優勝予測全体に固定しています</span>
+      <div>
+        ${fixedMatches.map((match) => `<em>${escapeHtml(match.label)}: ${match.games}局</em>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderRegionalSampleCards(matches = []) {
+  return matches.map((match) => `
+    <div class="sample-match-card">
+      <span>${escapeHtml(match.label)}</span>
+      <strong>${escapeHtml(match.teamA)} ${escapeHtml(match.score)} ${escapeHtml(match.teamB)}</strong>
+      <em>勝者 ${escapeHtml(match.winner)}</em>
+    </div>
+  `).join("");
+}
+
+function renderRegionalAwardRows() {
+  if (!regionalAwardRenderState) {
+    els.regionalAwardBody.innerHTML = emptyRow(6, "優勝予測実行後に表示します");
+    return;
+  }
+  const { awardStats, total } = regionalAwardRenderState;
+  const rows = [...awardStats.values()]
+    .filter((row) => regionalAwardCurrentKey !== "fightingSpirit" || row.firstTimer)
+    .sort((left, right) => {
+      const awardDiff = right.awards[regionalAwardCurrentKey] - left.awards[regionalAwardCurrentKey];
+      if (awardDiff) return awardDiff;
+      return left.name.localeCompare(right.name, "ja");
+    });
+  els.regionalAwardBody.innerHTML = rows.map((row, index) => {
+    const rank = index + 1;
+    const awardCount = row.awards[regionalAwardCurrentKey] || 0;
+    return `<tr class="${rank <= 3 ? `award-rank-row award-rank-${rank}` : ""}">
+      <td><span class="award-rank">${rank}</span></td>
+      <td><strong>${escapeHtml(row.name)}</strong><span class="muted-cell">${escapeHtml(regionalDisplayName(row.team))}${row.firstTimer ? " / 初出場" : ""}</span></td>
+      <td><strong>${formatRegionalRate(awardCount, total)}</strong></td>
+      <td>${formatRegionalAverage(row.wins, total)}-${formatRegionalAverage(row.losses, total)}</td>
+      <td>${formatRegionalAverage(row.appearances, total)}</td>
+      <td>${formatRegionalAverage(row.decidingWins, total)}</td>
+    </tr>`;
+  }).join("") || emptyRow(6, "該当者なし");
 }
 
 function formatRegionalRate(count, total) {
   return `${total ? (count / total * 100).toFixed(2) : "0.00"}%`;
+}
+
+function formatRegionalAverage(value, count) {
+  return (value / Math.max(1, count)).toFixed(1);
 }
 
 function regionalDisplayName(teamOrName) {
@@ -1294,10 +1743,13 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
   let stage2Started = false;
   let stage2ActiveSide = "";
   let stage2Active = null;
+  let decidingWinnerKey = "";
 
   fixedGames.forEach((fixed) => {
     games++;
     const aWon = fixed.winner.side === "A";
+    const winnerMember = aWon ? fixed.a : fixed.b;
+    decidingWinnerKey = winnerMember.statKey;
     if (aWon) scoreA++;
     else scoreB++;
     recordSimulationGame(playerStats, fixed.a, fixed.b, aWon ? "A" : "B", fixed.stageLabel);
@@ -1317,6 +1769,7 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
 
   if (!aliveA.size || !aliveB.size) {
     const winner = aliveA.size ? "A" : "B";
+    addSimulationDecidingWin(playerStats, decidingWinnerKey);
     if (keepLog) log.push(`確定済み対局で${winner === "A" ? "チームA" : "チームB"}勝利`);
     return { winner, games, log, playerStats, scoreA, scoreB };
   }
@@ -1331,6 +1784,8 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
       const a = aStage1[index];
       const b = bStage1[index];
       const aWon = Math.random() < expectedScore(a.rating, b.rating);
+      const winnerMember = aWon ? a : b;
+      decidingWinnerKey = winnerMember.statKey;
       games++;
       if (aWon) scoreA++;
       else scoreB++;
@@ -1343,6 +1798,7 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
 
   if (!aliveA.size || !aliveB.size) {
     const winner = aliveA.size ? "A" : "B";
+    addSimulationDecidingWin(playerStats, decidingWinnerKey);
     if (keepLog) log.push(`ステージ1で${winner === "A" ? "チームA" : "チームB"}勝利`);
     return { winner, games, log, playerStats, scoreA, scoreB };
   }
@@ -1357,6 +1813,8 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
 
   while (activeA && activeB) {
     const aWon = Math.random() < expectedScore(activeA.rating, activeB.rating);
+    const winnerMember = aWon ? activeA : activeB;
+    decidingWinnerKey = winnerMember.statKey;
     games++;
     if (aWon) scoreA++;
     else scoreB++;
@@ -1374,6 +1832,7 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
   }
 
   const winner = activeA ? "A" : "B";
+  addSimulationDecidingWin(playerStats, decidingWinnerKey);
   if (keepLog) log.push(`${winner === "A" ? "チームA" : "チームB"}勝利`);
   return { winner, games, log, playerStats, scoreA, scoreB };
 }
@@ -1385,7 +1844,11 @@ function getConfirmedSimulationGames(tournament, stage, teamA, teamB) {
   const warnings = [];
   const sourceMatches = computed.history
     .filter((match) => (match.tournament || "未分類") === tournament && match.playerB !== "__基準__")
-    .filter((match) => !stage || (match.stage || "未分類") === stage)
+    .filter((match) => {
+      if (!stage) return true;
+      const matchStage = match.stage || "未分類";
+      return typeof stage === "function" ? stage(matchStage) : matchStage === stage;
+    })
     .filter((match) => match.winner === "A" || match.winner === "B");
   const raw = sourceMatches
     .map((match) => {
@@ -1479,7 +1942,8 @@ function createSimulationPlayerStats(teamA, teamB) {
       stage1Appearances: 0,
       stage1Wins: 0,
       stage2Appearances: 0,
-      stage2Wins: 0
+      stage2Wins: 0,
+      decidingWins: 0
     });
   });
   return map;
@@ -1533,6 +1997,11 @@ function addSimulationPlayerGame(row, won, stage) {
   }
 }
 
+function addSimulationDecidingWin(stats, statKey) {
+  const row = stats.get(statKey);
+  if (row) row.decidingWins++;
+}
+
 function mergeSimulationPlayerStats(total, incoming) {
   incoming.forEach((row, name) => {
     const target = total.get(name);
@@ -1544,6 +2013,7 @@ function mergeSimulationPlayerStats(total, incoming) {
     target.stage1Wins += row.stage1Wins;
     target.stage2Appearances += row.stage2Appearances;
     target.stage2Wins += row.stage2Wins;
+    target.decidingWins += row.decidingWins || 0;
   });
 }
 
@@ -1745,6 +2215,7 @@ function drawChart() {
   const canvas = els.ratingCanvas;
   const ctx = canvas.getContext("2d");
   const player = computed.players.get(els.playerDetailSelect.value);
+  if (!isChartVisible(canvas)) return;
   const size = resizeCanvasForDisplay(canvas, ctx);
   const width = size.width;
   const height = size.height;
@@ -1807,6 +2278,19 @@ function drawChart() {
   ctx.fillText(Math.round(min).toString(), 12, bottom + 4);
 }
 
+function scheduleChartDraw() {
+  if (pendingChartFrame) cancelAnimationFrame(pendingChartFrame);
+  pendingChartFrame = requestAnimationFrame(() => {
+    pendingChartFrame = 0;
+    drawChart();
+  });
+}
+
+function isChartVisible(canvas) {
+  const view = document.querySelector("#playersView");
+  return view.classList.contains("active-view") && canvas.getBoundingClientRect().width > 0;
+}
+
 function resizeCanvasForDisplay(canvas, ctx) {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -1823,7 +2307,7 @@ function resizeCanvasForDisplay(canvas, ctx) {
 }
 
 window.addEventListener("resize", () => {
-  if (document.querySelector("#playersView").classList.contains("active-view")) drawChart();
+  if (document.querySelector("#playersView").classList.contains("active-view")) scheduleChartDraw();
 });
 
 function setView(view) {
@@ -1832,9 +2316,34 @@ function setView(view) {
   document.querySelector(`#${view}View`).classList.add("active-view");
   els.viewTitle.textContent = { dashboard: "概要", tournaments: "大会", simulation: "チーム対決シミュレーション", matches: "試合", players: "棋士", import: "追加", settings: "設定" }[view];
   els.searchBox.hidden = !SEARCHABLE_VIEWS.has(view);
+  if (view === "players") scheduleChartDraw();
+}
+
+function setSimulationTab(tab) {
+  document.querySelectorAll("[data-simulation-tab]").forEach((button) => {
+    const active = button.dataset.simulationTab === tab;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  document.querySelectorAll("[data-simulation-pane]").forEach((pane) => {
+    const active = pane.dataset.simulationPane === tab;
+    pane.classList.toggle("active-simulation-pane", active);
+    pane.hidden = !active;
+  });
+}
+
+function setRegionalAwardTab(tab) {
+  regionalAwardCurrentKey = tab;
+  document.querySelectorAll("[data-regional-award-tab]").forEach((button) => {
+    const active = button.dataset.regionalAwardTab === tab;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  renderRegionalAwardRows();
 }
 
 function addMatchFromForm() {
+  updateMatchStageInput();
   const data = Object.fromEntries(new FormData(els.matchForm).entries());
   if (!data.playerA || !data.playerB || !data.winner) {
     showToast("棋士A・棋士B・勝者を入力してください");
@@ -1850,6 +2359,7 @@ function addMatchFromForm() {
     showToast("試合を更新しました");
   }
   els.matchForm.reset();
+  applyMatchStageControls("");
   recompute();
 }
 
@@ -2011,7 +2521,6 @@ function startEditMatch(index) {
   Object.entries({
     date: match.date || "",
     tournament: match.tournament || "",
-    stage: match.stage || "",
     teamA: match.teamA || "",
     playerA: match.playerA || "",
     teamB: match.teamB || "",
@@ -2022,6 +2531,8 @@ function startEditMatch(index) {
     const field = els.matchForm.elements[name];
     if (field) field.value = value;
   });
+  applyMatchStageControls(match.stage || "");
+  renderFormOptions();
   els.addMatchButton.textContent = "更新";
   els.cancelEditButton.hidden = false;
   els.matchForm.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -2031,6 +2542,7 @@ function startEditMatch(index) {
 function cancelEditMatch() {
   resetEditMode();
   els.matchForm.reset();
+  applyMatchStageControls("");
   renderFormOptions();
   showToast("編集をキャンセルしました");
 }
@@ -2049,6 +2561,7 @@ function deleteMatch(index) {
   state.matches.splice(index, 1);
   if (editingMatchIndex === index) {
     els.matchForm.reset();
+    applyMatchStageControls("");
     resetEditMode();
   }
   recompute();
