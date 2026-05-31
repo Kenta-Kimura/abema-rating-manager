@@ -361,7 +361,7 @@ function computeRatings() {
       a.rating = aAfter;
       a.peakRating = Math.max(a.peakRating, a.rating);
       a.lastDelta = deltaA;
-      a.history.push({ label: match.tournament || `#${index + 1}`, rating: a.rating, detail: `${match.tournament || ""} ${match.stage || ""}`.trim() });
+      a.history.push({ label: match.tournament || `#${index + 1}`, rating: a.rating, detail: `${match.tournament || ""} ${formatStageLabel(match.stage)}`.trim() });
       history.push({
         ...match,
         index,
@@ -518,7 +518,7 @@ function renderMatches() {
   const query = normalizeName(els.searchInput.value).toLowerCase();
   const rows = sortRows(computed.history
     .filter((match) => {
-      const text = [match.date, match.tournament, match.stage, match.teamA, match.playerA, match.teamB, match.playerB, match.note].join(" ").toLowerCase();
+      const text = [match.date, match.tournament, match.stage, formatStageLabel(match.stage), match.teamA, match.playerA, match.teamB, match.playerB, match.note].join(" ").toLowerCase();
       return text.includes(query);
     })
     .map((match) => ({
@@ -533,7 +533,7 @@ function renderMatches() {
         return `<tr>
           <td>${escapeHtml(match.date || "")}</td>
           <td>${escapeHtml(match.tournament || "")}</td>
-          <td>${escapeHtml(match.playerA)}<br><small>${escapeHtml(match.stage || "")}</small></td>
+          <td>${escapeHtml(match.playerA)}<br><small>${escapeHtml(formatStageLabel(match.stage))}</small></td>
           <td>レート反映</td>
           <td>${formatDelta(match.deltaA)}</td>
           <td><button data-edit="${match.index}" title="編集">編集</button></td>
@@ -542,7 +542,7 @@ function renderMatches() {
       return `<tr>
         <td>${escapeHtml(match.date || "")}</td>
         <td>${escapeHtml(match.tournament || "")}</td>
-        <td>${plainMatchupHtml(match)}<br><small>${escapeHtml([match.stage, senteText(match)].filter(Boolean).join(" / "))}</small></td>
+        <td>${plainMatchupHtml(match)}<br><small>${escapeHtml([formatStageLabel(match.stage), senteText(match)].filter(Boolean).join(" / "))}</small></td>
         <td>${expectedHtml(match)}</td>
         <td>${escapeHtml(match.playerA)} ${formatDelta(match.deltaA)} / ${escapeHtml(match.playerB)} ${formatDelta(match.deltaB)}</td>
         <td class="row-actions"><button data-edit="${match.index}" title="編集">編集</button><button data-delete="${match.index}" class="danger subtle" title="削除">削除...</button></td>
@@ -592,7 +592,7 @@ function renderTournaments() {
       winRate: decisiveWinRate(player)
     })), sortState.tournament);
   const matches = allMatches.filter((match) => {
-    const text = [match.playerA, match.playerB, match.stage, match.teamA, match.teamB].join(" ").toLowerCase();
+    const text = [match.playerA, match.playerB, match.stage, formatStageLabel(match.stage), match.teamA, match.teamB].join(" ").toLowerCase();
     return text.includes(query);
   });
   const decisiveGames = matches.reduce((sum, match) => sum + Number(match.aWins || 0) + Number(match.bWins || 0), 0);
@@ -632,7 +632,7 @@ function renderTournaments() {
       <td>${resultMatchupHtml(match)}</td>
       <td>${score}</td>
       <td>${escapeHtml(match.playerA)} ${formatDelta(match.deltaA)} / ${escapeHtml(match.playerB)} ${formatDelta(match.deltaB)}</td>
-      <td>${escapeHtml(match.stage || "")}</td>
+      <td>${escapeHtml(formatStageLabel(match.stage))}</td>
     </tr>`;
   }).join("") || emptyRow(4, "この大会の対局がありません");
 
@@ -866,6 +866,21 @@ function parseMatchStage(stage) {
     game: match[4] || "1",
     valid: true
   };
+}
+
+function formatStageLabel(stage) {
+  if (!stage) return "";
+  const parsed = parseMatchStage(stage);
+  if (!parsed.valid) return stage;
+  const typeMeta = MATCH_STAGE_TYPES.find((item) => item.value === parsed.type);
+  const parts = [parsed.phase, typeMeta?.label || parsed.type];
+  if (typeMeta?.groupRequired) parts.push(`第${parsed.match}試合`);
+  if (hasStageGame(stage)) parts.push(`第${parsed.game}局`);
+  return parts.join(" ");
+}
+
+function hasStageGame(stage) {
+  return /(?:^|\s)\d+局$/.test(normalizeName(stage));
 }
 
 function normalizeStageType(value) {
@@ -1242,7 +1257,7 @@ function getSimulationStageOptions(tournament) {
     const group = simulationStageGroup(stage);
     return group
       ? { value: `group:${group}`, label: simulationStageGroupLabel(group) }
-      : { value: `stage:${stage}`, label: stage };
+      : { value: `stage:${stage}`, label: formatStageLabel(stage) };
   }).filter((option, index, options) => options.findIndex((item) => item.value === option.value) === index);
 }
 
@@ -1266,13 +1281,7 @@ function simulationStageGroup(stage) {
 function simulationStageGroupLabel(group) {
   const parsed = parseMatchStage(`${group} 1局`);
   if (!parsed.valid) return group;
-  const typeMeta = MATCH_STAGE_TYPES.find((type) => type.value === parsed.type);
-  const parts = [parsed.phase, typeMeta?.label || parsed.type];
-  if (typeMeta?.groupRequired) {
-    const match = MATCH_STAGE_MATCHES.find((item) => item.value === parsed.match);
-    parts.push(match?.label || `第${parsed.match}試合`);
-  }
-  return parts.join(" ");
+  return formatStageLabel(group);
 }
 
 function getSimulationTeamGroups() {
@@ -2301,7 +2310,7 @@ function renderPlayerDetail() {
     <tr>
       <td>${row.index}</td>
       <td>${escapeHtml(row.tournament)}</td>
-      <td>${escapeHtml(row.stage || "")}</td>
+      <td>${escapeHtml(formatStageLabel(row.stage))}</td>
       <td><strong>${row.rating.toFixed(1)}</strong></td>
       <td>${formatDelta(row.delta)}</td>
     </tr>
@@ -3385,7 +3394,7 @@ function expectedHtml(match) {
 function chartDetail(match, opponent, score, before, after, delta) {
   const winner = match.winner === "A" ? match.playerA : match.winner === "B" ? match.playerB : "引分・無勝敗";
   const side = match.sente ? (match.sente === "A" ? `${match.playerA}先手` : `${match.playerB}先手`) : "";
-  const heading = [match.tournament, match.stage].filter(Boolean).join(" / ");
+  const heading = [match.tournament, formatStageLabel(match.stage)].filter(Boolean).join(" / ");
   return [
     heading,
     `相手: ${opponent}`,
