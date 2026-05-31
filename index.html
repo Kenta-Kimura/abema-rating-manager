@@ -68,10 +68,11 @@
               <select id="tournamentSelect"></select>
             </div>
             <div id="tournamentSummary" class="detail-grid"></div>
+            <p class="summary-note">対局行はこの大会の登録行数、決着局はスコアとして登録された勝敗の合計局数、無勝敗は引分・無勝敗でスコアがない行、未定局は結果が未定の行です。</p>
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th>#</th><th data-sort="name">棋士</th><th data-sort="start">開始レーティング</th><th data-sort="end">終了レーティング</th><th data-sort="delta">変動</th><th data-sort="record">勝敗無</th><th data-sort="winRate">勝率</th></tr>
+                  <tr><th>#</th><th data-sort="name">棋士</th><th data-sort="overallRank">全体順位</th><th data-sort="overallRankChange">全体順位変動</th><th data-sort="start">開始レーティング</th><th data-sort="end">終了レーティング</th><th data-sort="delta">変動</th><th data-sort="record">勝敗無</th><th data-sort="winRate">勝率</th></tr>
                 </thead>
                 <tbody id="tournamentBody"></tbody>
               </table>
@@ -84,7 +85,7 @@
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th data-sort="matchup">対局</th><th data-sort="score">スコア</th><th data-sort="delta">レーティング変動</th><th data-sort="stage">区分</th></tr>
+                  <tr><th data-sort="matchup">対局</th><th data-sort="stage">区分</th></tr>
                 </thead>
                 <tbody id="tournamentMatchesBody"></tbody>
               </table>
@@ -360,7 +361,7 @@
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th data-sort="tournament">大会</th><th data-sort="record">勝敗無</th><th data-sort="winRate">勝率</th><th data-sort="start">開始レーティング</th><th data-sort="end">終了レーティング</th><th data-sort="delta">変動</th></tr>
+                  <tr><th data-sort="tournament">大会</th><th data-sort="record">勝敗無</th><th data-sort="winRate">勝率</th><th data-sort="end">終了レーティング</th><th data-sort="delta">変動</th></tr>
                 </thead>
                 <tbody id="playerTournamentBody"></tbody>
               </table>

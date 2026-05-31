@@ -681,6 +681,13 @@ textarea {
   font-size: 22px;
 }
 
+.summary-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
 .simulation-result {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -705,6 +712,28 @@ textarea {
   display: block;
   margin-top: 4px;
   color: var(--muted);
+  font-size: 12px;
+}
+
+.tournament-match-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+}
+
+.tournament-match-players {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.match-separator,
+.tournament-match-delta {
+  color: var(--muted);
+}
+
+.tournament-match-delta {
+  white-space: nowrap;
   font-size: 12px;
 }
 
