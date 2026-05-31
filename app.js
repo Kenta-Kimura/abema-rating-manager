@@ -584,10 +584,14 @@ function renderTournaments() {
   }
   const query = normalizeName(els.searchInput.value).toLowerCase();
   const allMatches = computed.history.filter((match) => (match.tournament || "未分類") === tournament && match.playerB !== "__基準__");
+  const tournamentRankMeta = computeTournamentRankMeta(tournament);
+  const tournamentTeams = getTournamentTeamMap(tournament, allMatches);
   const standings = sortRows(computeTournamentStandings(allMatches)
     .filter((player) => player.name.toLowerCase().includes(query))
     .map((player) => ({
       ...player,
+      ...tournamentRankMeta.get(player.name),
+      team: tournamentTeams.get(player.name) || "",
       record: player.wins - player.losses,
       winRate: decisiveWinRate(player)
     })), sortState.tournament);
@@ -611,30 +615,27 @@ function renderTournaments() {
     const winRate = (decisiveWinRate(player) * 100).toFixed(1);
     return `<tr>
       <td><span class="rank">${index + 1}</span></td>
-      <td>${escapeHtml(player.name)}</td>
+      <td>${tournamentPlayerCellHtml(player.name, player.team)}</td>
+      <td>${formatRank(player.overallRank)}</td>
+      <td>${formatRankChange(player.overallRankChange)}</td>
       <td>${player.start.toFixed(1)}</td>
       <td><strong>${player.end.toFixed(1)}</strong></td>
       <td>${formatDelta(player.delta)}</td>
       <td>${player.wins}-${player.losses}-${player.draws}</td>
       <td>${winRate}%</td>
     </tr>`;
-  }).join("") || emptyRow(7, "この大会の対局がありません");
+  }).join("") || emptyRow(9, "この大会の対局がありません");
 
   els.tournamentMatchesBody.innerHTML = sortRows(matches.map((match) => ({
     ...match,
     matchup: `${match.playerA} ${match.playerB}`,
-    winnerText: winnerLabel(match),
-    scoreValue: Number(match.aWins || 0) - Number(match.bWins || 0),
-    delta: Math.abs(Number(match.deltaA || 0)) + Math.abs(Number(match.deltaB || 0))
+    winnerText: winnerLabel(match)
   })), sortState.tournamentMatches).map((match) => {
-    const score = `${match.aWins || 0}-${match.bWins || 0}`;
     return `<tr>
-      <td>${resultMatchupHtml(match)}</td>
-      <td>${score}</td>
-      <td>${escapeHtml(match.playerA)} ${formatDelta(match.deltaA)} / ${escapeHtml(match.playerB)} ${formatDelta(match.deltaB)}</td>
+      <td>${tournamentMatchupHtml(match, tournamentTeams)}</td>
       <td>${escapeHtml(formatStageLabel(match.stage))}</td>
     </tr>`;
-  }).join("") || emptyRow(4, "この大会の対局がありません");
+  }).join("") || emptyRow(2, "この大会の対局がありません");
 
   const groupRatings = computeGroupRatings(tournament, allMatches, standings);
   els.leagueRatingBody.innerHTML = sortRows(groupRatings.leagues, sortState.leagueRatings).map((group) => `
@@ -698,6 +699,89 @@ function computeTournamentStandings(matches) {
     ...player,
     delta: Math.round((player.end - player.start) * 10) / 10
   })).sort((left, right) => right.end - left.end || right.delta - left.delta || right.wins - left.wins || left.name.localeCompare(right.name, "ja"));
+}
+
+function computeTournamentRankMeta(tournament) {
+  const initial = Number(state.settings.initialRating) || 1500;
+  const entries = new Map([...computed.players.keys()].map((name) => [name, {
+    name,
+    rating: initial,
+    wins: 0,
+    games: 0
+  }]));
+  let startRanks = null;
+  let endRanks = null;
+  let hasSelectedRatedMatch = false;
+
+  const ensure = (name) => {
+    const cleanName = normalizeName(name);
+    if (!entries.has(cleanName)) {
+      entries.set(cleanName, { name: cleanName, rating: initial, wins: 0, games: 0 });
+    }
+    return entries.get(cleanName);
+  };
+
+  computed.history.forEach((match) => {
+    const isSelectedTournament = (match.tournament || "未分類") === tournament;
+    if (isSelectedTournament && startRanks === null) startRanks = rankSnapshot(entries);
+
+    const a = ensure(match.playerA);
+    if (match.sourceRated) {
+      a.rating = Number(match.aAfter);
+    } else {
+      const b = ensure(match.playerB);
+      if (match.winner !== "U") {
+        const aWins = Number(match.aWins || 0);
+        const bWins = Number(match.bWins || 0);
+        const playedGames = aWins + bWins > 0 ? aWins + bWins : 1;
+        a.rating = Number(match.aAfter);
+        b.rating = Number(match.bAfter);
+        a.wins += aWins;
+        b.wins += bWins;
+        a.games += playedGames;
+        b.games += playedGames;
+      }
+    }
+
+    if (isSelectedTournament && (match.sourceRated || match.winner !== "U")) {
+      hasSelectedRatedMatch = true;
+      endRanks = rankSnapshot(entries);
+    }
+  });
+
+  return new Map([...computed.players.keys()].map((name) => {
+    const startRank = startRanks?.get(name);
+    const endRank = endRanks?.get(name);
+    return [name, {
+      overallRank: hasSelectedRatedMatch ? endRank : null,
+      overallRankChange: hasSelectedRatedMatch && Number.isFinite(startRank) && Number.isFinite(endRank) ? startRank - endRank : null
+    }];
+  }));
+}
+
+function rankSnapshot(entries) {
+  return new Map([...entries.values()]
+    .filter((player) => player.games >= Number(state.settings.minGames || 0))
+    .sort((left, right) => right.rating - left.rating || right.wins - left.wins || left.name.localeCompare(right.name, "ja"))
+    .map((player, index) => [player.name, index + 1]));
+}
+
+function getTournamentTeamMap(tournament, matches) {
+  const teams = new Map();
+  matches.forEach((match) => {
+    if (match.teamA) teams.set(normalizeName(match.playerA), match.teamA);
+    if (match.teamB) teams.set(normalizeName(match.playerB), match.teamB);
+  });
+  getTournamentPlayerMeta(tournament).forEach((info, playerName) => {
+    if (info.team) teams.set(normalizeName(playerName), info.team);
+  });
+  return teams;
+}
+
+function tournamentPlayerCellHtml(name, team) {
+  const teamText = normalizeName(team);
+  if (!teamText) return escapeHtml(name);
+  return `${escapeHtml(name)}<span class="muted-cell">${escapeHtml(teamText)}</span>`;
 }
 
 function computeGroupRatings(tournament, matches, standings) {
@@ -2269,7 +2353,7 @@ function renderPlayerDetail() {
   const player = computed.players.get(els.playerDetailSelect.value);
   if (!player) {
     els.playerDetail.innerHTML = "<p>棋士を選択してください。</p>";
-    els.playerTournamentBody.innerHTML = emptyRow(6, "棋士を選択してください");
+    els.playerTournamentBody.innerHTML = emptyRow(5, "棋士を選択してください");
     els.playerOpponentBody.innerHTML = emptyRow(4, "棋士を選択してください");
     els.playerRatingHistoryBody.innerHTML = emptyRow(5, "棋士を選択してください");
     return;
@@ -2293,11 +2377,10 @@ function renderPlayerDetail() {
       <td>${escapeHtml(row.tournament)}</td>
       <td>${row.wins}-${row.losses}-${row.draws}</td>
       <td>${(row.winRate * 100).toFixed(1)}%</td>
-      <td>${row.start.toFixed(1)}</td>
       <td><strong>${row.end.toFixed(1)}</strong></td>
       <td>${formatDelta(row.delta)}</td>
     </tr>
-  `).join("") || emptyRow(6, "大会別成績がありません");
+  `).join("") || emptyRow(5, "大会別成績がありません");
   els.playerOpponentBody.innerHTML = sortRows(opponents, sortState.playerOpponents).map((row) => `
     <tr>
       <td>${escapeHtml(row.name)}</td>
@@ -3282,6 +3365,18 @@ function formatDelta(value) {
   return `<span class="${className}">${sign}${number.toFixed(1)}</span>`;
 }
 
+function formatRank(value) {
+  return Number.isFinite(value) ? `${value}位` : "-";
+}
+
+function formatRankChange(value) {
+  if (!Number.isFinite(value)) return "-";
+  if (!value) return "±0";
+  const className = value > 0 ? "delta-up" : "delta-down";
+  const sign = value > 0 ? "+" : "";
+  return `<span class="${className}">${sign}${value}</span>`;
+}
+
 function csvCell(value) {
   const text = String(value ?? "");
   return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
@@ -3316,7 +3411,7 @@ function updateSort(header) {
   if (current.key === key && current.touched) {
     current.direction = current.direction === "asc" ? "desc" : "asc";
   } else {
-    current.direction = isNumericSortKey(key) ? "desc" : "asc";
+    current.direction = key === "overallRank" ? "asc" : isNumericSortKey(key) ? "desc" : "asc";
   }
   current.key = key;
   current.touched = true;
@@ -3335,6 +3430,7 @@ function sortValue(row, key) {
   if (key === "record") return row.record ?? ((row.wins || 0) - (row.losses || 0));
   if (key === "winRate") return row.winRate ?? decisiveWinRate(row);
   if (key === "lastDelta") return row.lastDelta ?? 0;
+  if (key === "overallRank") return row.overallRank ?? Number.POSITIVE_INFINITY;
   if (key === "delta") return row.delta ?? row.deltaA ?? 0;
   if (key === "winner") return row.winnerText ?? winnerLabel(row);
   if (key === "expected") return row.expected ?? 0;
@@ -3342,7 +3438,7 @@ function sortValue(row, key) {
 }
 
 function isNumericSortKey(key) {
-  return ["rating", "record", "winRate", "lastDelta", "start", "end", "delta", "score", "average", "count", "index", "expected", "order"].includes(key);
+  return ["rating", "record", "winRate", "lastDelta", "overallRank", "overallRankChange", "start", "end", "delta", "score", "average", "count", "index", "expected", "order"].includes(key);
 }
 
 function compareValues(left, right) {
@@ -3371,11 +3467,18 @@ function resultMatchupHtml(match) {
   return `${a} vs ${b}`;
 }
 
-function resultPlayerHtml(match, side) {
+function tournamentMatchupHtml(match, teamMap) {
+  return `<span class="tournament-match-line"><span class="tournament-match-players">${resultPlayerHtml(match, "A", teamMap)} <span class="match-separator">vs</span> ${resultPlayerHtml(match, "B", teamMap)}</span><span class="tournament-match-delta">変動: ${formatDelta(match.deltaA)} / ${formatDelta(match.deltaB)}</span></span>`;
+}
+
+function resultPlayerHtml(match, side, teamMap = null) {
   const name = side === "A" ? match.playerA : match.playerB;
+  const team = side === "A"
+    ? (teamMap?.get(name) || match.teamA || "")
+    : (teamMap?.get(name) || match.teamB || "");
   const won = match.winner === side;
   const mark = match.winner === "U" ? "?" : match.winner === "D" ? "△" : won ? "○" : "●";
-  const label = `${mark}${name}`;
+  const label = `${mark}${team ? `${team}・` : ""}${name}`;
   return won ? `<strong>${escapeHtml(label)}</strong>` : escapeHtml(label);
 }
 
