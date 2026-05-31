@@ -337,21 +337,16 @@ function computeRatings() {
   const getPlayer = (name) => {
     const cleanName = normalizeName(name);
     if (!players.has(cleanName)) {
-      const seeded = state.matches.find((match) => normalizeName(match.playerA) === cleanName && isFiniteNumber(match.aBefore))
-        || state.matches.find((match) => normalizeName(match.playerB) === cleanName && isFiniteNumber(match.bBefore));
-      const seedRating = seeded
-        ? (normalizeName(seeded.playerA) === cleanName ? Number(seeded.aBefore) : Number(seeded.bBefore))
-        : initial;
       players.set(cleanName, {
         name: cleanName,
-        rating: seedRating,
+        rating: initial,
         wins: 0,
         losses: 0,
         draws: 0,
         games: 0,
-        peakRating: seedRating,
+        peakRating: initial,
         lastDelta: 0,
-        history: [{ label: "開始", rating: seedRating, detail: "開始時レーティング" }]
+        history: [{ label: "開始", rating: initial, detail: "開始時レーティング" }]
       });
     }
     return players.get(cleanName);
@@ -383,9 +378,8 @@ function computeRatings() {
       return;
     }
     const b = getPlayer(match.playerB);
-    const sourceBefore = isFiniteNumber(match.aBefore) && isFiniteNumber(match.bBefore);
-    const aBefore = sourceBefore ? Number(match.aBefore) : a.rating;
-    const bBefore = sourceBefore ? Number(match.bBefore) : b.rating;
+    const aBefore = a.rating;
+    const bBefore = b.rating;
     if (match.winner === "U") {
       history.push({
         ...match,
@@ -400,7 +394,6 @@ function computeRatings() {
         bWins: 0,
         expectedA: expectedScore(aBefore, bBefore),
         expectedB: expectedScore(bBefore, aBefore),
-        sourceBefore,
         pending: true
       });
       return;
@@ -447,8 +440,7 @@ function computeRatings() {
       aWins,
       bWins,
       expectedA,
-      expectedB,
-      sourceBefore
+      expectedB
     });
   });
 
