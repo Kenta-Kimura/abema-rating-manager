@@ -3,8 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Cache-Control" content="no-store" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>ABEMAトーナメント レーティング管理</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260620-regional-cache" />
   </head>
   <body>
     <div class="app-shell">
@@ -52,7 +55,7 @@
               <div class="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>#</th><th data-sort="name">棋士</th><th data-sort="rating">レーティング</th><th data-sort="record">勝敗無</th><th data-sort="winRate">勝率</th><th data-sort="lastDelta">直近変動</th></tr>
+                    <tr><th>#</th><th data-sort="name">棋士</th><th data-sort="rating">レーティング</th><th data-sort="deviation">偏差値</th><th data-sort="record">勝敗無</th><th data-sort="winRate">勝率</th><th data-sort="lastDelta">直近変動</th></tr>
                   </thead>
                   <tbody id="rankingBody"></tbody>
                 </table>
@@ -133,7 +136,6 @@
                 <label class="field-label">リーグ<select name="league" id="simulationLeagueSelect"></select></label>
                 <label class="field-label">チームA<select name="teamA" id="simulationTeamASelect"></select></label>
                 <label class="field-label">チームB<select name="teamB" id="simulationTeamBSelect"></select></label>
-                <label class="field-label">回数<input name="count" id="simulationCountInput" type="number" min="1" step="1000" value="100000" /></label>
               </form>
               <div class="custom-simulation-teams">
                 <div class="custom-team-box" id="customTeamABox">
@@ -197,7 +199,7 @@
                   <h4 id="simulationPlayerStatsATitle" class="table-title">チームA</h4>
                   <table>
                     <thead>
-                      <tr><th>棋士名</th><th>現在レーティング</th><th>平均対局数</th><th>期待勝数</th><th>期待敗数</th><th>対局勝率</th><th>S1突破率</th><th>S2期待勝数</th><th>S2勝率</th></tr>
+                      <tr><th data-sort="name">棋士名</th><th data-sort="rating">現在レーティング</th><th data-sort="appearances">平均対局数</th><th data-sort="wins">期待勝数</th><th data-sort="losses">期待敗数</th><th data-sort="winRate">対局勝率</th><th data-sort="stage1Rate">S1突破率</th><th data-sort="stage2Wins">S2期待勝数</th><th data-sort="stage2Rate">S2勝率</th></tr>
                     </thead>
                     <tbody id="simulationPlayerStatsABody"></tbody>
                   </table>
@@ -206,7 +208,7 @@
                   <h4 id="simulationPlayerStatsBTitle" class="table-title">チームB</h4>
                   <table>
                     <thead>
-                      <tr><th>棋士名</th><th>現在レーティング</th><th>平均対局数</th><th>期待勝数</th><th>期待敗数</th><th>対局勝率</th><th>S1突破率</th><th>S2期待勝数</th><th>S2勝率</th></tr>
+                      <tr><th data-sort="name">棋士名</th><th data-sort="rating">現在レーティング</th><th data-sort="appearances">平均対局数</th><th data-sort="wins">期待勝数</th><th data-sort="losses">期待敗数</th><th data-sort="winRate">対局勝率</th><th data-sort="stage1Rate">S1突破率</th><th data-sort="stage2Wins">S2期待勝数</th><th data-sort="stage2Rate">S2勝率</th></tr>
                     </thead>
                     <tbody id="simulationPlayerStatsBBody"></tbody>
                   </table>
@@ -250,7 +252,7 @@
               <div class="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>リーグ</th><th>チーム</th><th>1位率</th><th>2位率</th><th>予選突破率</th><th>準優勝率</th><th>優勝率</th></tr>
+                    <tr><th data-sort="league">リーグ</th><th data-sort="team">チーム</th><th data-sort="first">1位率</th><th data-sort="second">2位率</th><th data-sort="advance">予選突破率</th><th data-sort="runnerUp">準優勝率</th><th data-sort="champion">優勝率</th></tr>
                   </thead>
                   <tbody id="regionalForecastBody"></tbody>
                 </table>
@@ -273,8 +275,8 @@
               </div>
               <div class="table-wrap">
                 <table>
-                  <thead>
-                    <tr><th>#</th><th>候補</th><th>受賞率</th><th>平均勝敗</th><th>平均対局数</th><th>決定局勝ち</th></tr>
+                  <thead id="regionalAwardHead">
+                    <tr><th>#</th><th>候補</th><th>受賞率</th><th>平均勝数</th><th>確定勝数</th></tr>
                   </thead>
                   <tbody id="regionalAwardBody"></tbody>
                 </table>
@@ -314,7 +316,7 @@
               </fieldset>
               <fieldset class="choice-group result-choice">
                 <legend>結果</legend>
-                <label><input type="radio" name="winner" value="U" required /> 未定</label>
+                <label><input type="radio" name="winner" value="U" required checked /> 未定</label>
                 <label><input type="radio" name="winner" value="A" required /> A勝ち</label>
                 <label><input type="radio" name="winner" value="B" /> B勝ち</label>
                 <label><input type="radio" name="winner" value="D" /> 引分・無勝敗</label>
@@ -477,6 +479,6 @@
     <datalist id="matchPlayerAOptions"></datalist>
     <datalist id="matchPlayerBOptions"></datalist>
     <datalist id="playerOptions"></datalist>
-    <script src="./app.js"></script>
+    <script src="./app.js?v=20260620-regional-cache"></script>
   </body>
 </html>
