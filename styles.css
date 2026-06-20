@@ -459,7 +459,12 @@ canvas {
 .choice-group {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
   gap: 10px;
+  width: 100%;
+  min-width: 0;
+  min-inline-size: 0;
   min-height: 38px;
   margin: 0;
   padding: 7px 10px;
@@ -487,7 +492,15 @@ canvas {
 }
 
 .result-choice {
-  grid-column: span 2;
+  grid-column: 1 / -1;
+}
+
+#matchForm > .choice-group,
+#matchForm > .result-choice {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  min-inline-size: 0;
 }
 
 .checkbox-label {
@@ -715,6 +728,12 @@ textarea {
   font-size: 12px;
 }
 
+.ranking-last-detail {
+  max-width: 280px;
+  white-space: normal;
+  line-height: 1.45;
+}
+
 .tournament-match-line {
   display: flex;
   flex-wrap: wrap;
@@ -931,6 +950,11 @@ textarea {
   .simulation-form, .simulation-result, .custom-simulation-teams { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .custom-team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .match-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .choice-group,
+  .result-choice {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1094,10 +1118,6 @@ textarea {
 
   .choice-group label {
     white-space: normal;
-  }
-
-  .result-choice {
-    grid-column: auto;
   }
 
   canvas {
