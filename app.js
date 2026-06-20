@@ -1,6 +1,8 @@
 const STORAGE_KEY = "abema-elo-state-v1";
 const DEFAULT_EXTERNAL_JSON_NAME = "abema-rating-data.json";
 const DEFAULT_EXTERNAL_JSON = `./${DEFAULT_EXTERNAL_JSON_NAME}`;
+const FIXED_SIMULATION_COUNT = 100000;
+const REGIONAL_FORECAST_CACHE_VERSION = 1;
 const SEARCHABLE_VIEWS = new Set(["dashboard", "tournaments", "matches"]);
 const REGIONAL_2026_TOURNAMENT = "地域2026";
 const REGIONAL_2026_DISPLAY_NAMES = {
@@ -69,9 +71,11 @@ let externalSaveTimer = null;
 let simulationRunId = 0;
 let simulationRunning = false;
 let simulationStopRequested = false;
+let simulationResultRenderState = null;
 let regionalForecastRunId = 0;
 let regionalForecastRunning = false;
 let regionalForecastStopRequested = false;
+let regionalForecastRenderState = null;
 let regionalAwardCurrentKey = REGIONAL_AWARDS[0].key;
 let regionalAwardRenderState = null;
 let customTeamSuggestionBox = null;
@@ -88,6 +92,9 @@ const sortState = {
   playerTournaments: { key: "order", direction: "asc", touched: false },
   playerOpponents: { key: "rating", direction: "desc", touched: false },
   playerRatingHistory: { key: "index", direction: "asc", touched: false },
+  simulationPlayerStats: { key: "wins", direction: "desc", touched: false },
+  regionalForecast: { key: "champion", direction: "desc", touched: false },
+  regionalAwards: { key: "awardRate", direction: "desc", touched: false },
   teamMeta: { key: "teamMetaDefault", direction: "asc", touched: false }
 };
 
@@ -155,7 +162,6 @@ const els = {
   simulationLeagueSelect: document.querySelector("#simulationLeagueSelect"),
   simulationTeamASelect: document.querySelector("#simulationTeamASelect"),
   simulationTeamBSelect: document.querySelector("#simulationTeamBSelect"),
-  simulationCountInput: document.querySelector("#simulationCountInput"),
   runSimulationButton: document.querySelector("#runSimulationButton"),
   simulationStatus: document.querySelector("#simulationStatus"),
   simulationWarnings: document.querySelector("#simulationWarnings"),
@@ -173,6 +179,7 @@ const els = {
   regionalForecastWarnings: document.querySelector("#regionalForecastWarnings"),
   regionalForecastFixedSummary: document.querySelector("#regionalForecastFixedSummary"),
   regionalForecastBody: document.querySelector("#regionalForecastBody"),
+  regionalAwardHead: document.querySelector("#regionalAwardHead"),
   regionalAwardBody: document.querySelector("#regionalAwardBody"),
   regionalForecastSampleLog: document.querySelector("#regionalForecastSampleLog"),
   customTeamABox: document.querySelector("#customTeamABox"),
@@ -188,9 +195,15 @@ document.querySelectorAll(".nav-button").forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.view));
 });
 document.querySelectorAll("th[data-sort]").forEach((header) => {
+  registerSortableHeader(header);
+});
+
+function registerSortableHeader(header) {
+  if (header.dataset.sortReady) return;
   header.classList.add("sortable");
   header.addEventListener("click", () => updateSort(header));
-});
+  header.dataset.sortReady = "true";
+}
 
 els.searchInput.addEventListener("input", render);
 els.tournamentSelect.addEventListener("change", renderTournaments);
@@ -238,9 +251,6 @@ els.simulationLeagueSelect.addEventListener("change", () => {
 });
 els.simulationTeamASelect.addEventListener("change", renderSimulationPreview);
 els.simulationTeamBSelect.addEventListener("change", renderSimulationPreview);
-els.simulationCountInput.addEventListener("input", () => {
-  renderSimulationPreview();
-});
 els.regionalForecastCountInput.addEventListener("input", renderRegionalForecastPreview);
 els.customTeamAPlayers.forEach(registerCustomTeamInput);
 els.customTeamBPlayers.forEach(registerCustomTeamInput);
@@ -265,11 +275,11 @@ document.addEventListener("click", (event) => {
   hideCustomTeamSuggestions();
 });
 window.addEventListener("resize", () => {
-  hideInlineSuggestions();
+  repositionInlineSuggestions();
   hideCustomTeamSuggestions();
 });
 window.addEventListener("scroll", () => {
-  hideInlineSuggestions();
+  repositionInlineSuggestions();
   hideCustomTeamSuggestions();
 }, true);
 
@@ -281,6 +291,7 @@ function loadState() {
     settings: { initialRating: 1500, kFactor: 32, minGames: 0 },
     matches: [],
     rankingMeta: [],
+    regionalForecastCache: createEmptyRegionalForecastCache(),
     ratingFormulaVersion: 2
   };
   try {
@@ -288,11 +299,13 @@ function loadState() {
     const loaded = {
       ...fallback,
       ...saved,
-      settings: { ...fallback.settings, ...(saved.settings || {}) }
+      settings: { ...fallback.settings, ...(saved.settings || {}) },
+      regionalForecastCache: normalizeRegionalForecastCache(saved.regionalForecastCache)
     };
     if (!saved.ratingFormulaVersion && Number(loaded.settings.kFactor) === 24) {
       loaded.settings.kFactor = 32;
     }
+    delete loaded.simulationCache;
     if (loaded.matches.some((match) => match.playerB === "__基準__")) {
       loaded.rankingMeta = [
         ...(loaded.rankingMeta || []),
@@ -322,6 +335,18 @@ function saveState() {
   scheduleExternalSave();
 }
 
+function createEmptyRegionalForecastCache() {
+  return { version: REGIONAL_FORECAST_CACHE_VERSION, regional2026: null };
+}
+
+function normalizeRegionalForecastCache(cache) {
+  if (!cache || cache.version !== REGIONAL_FORECAST_CACHE_VERSION) return createEmptyRegionalForecastCache();
+  return {
+    version: REGIONAL_FORECAST_CACHE_VERSION,
+    regional2026: cache.regional2026 || null
+  };
+}
+
 function recompute() {
   computed = computeRatings();
   saveState();
@@ -346,6 +371,7 @@ function computeRatings() {
         games: 0,
         peakRating: initial,
         lastDelta: 0,
+        lastMatchDetail: null,
         history: [{ label: "開始", rating: initial, detail: "開始時レーティング" }]
       });
     }
@@ -361,6 +387,7 @@ function computeRatings() {
       a.rating = aAfter;
       a.peakRating = Math.max(a.peakRating, a.rating);
       a.lastDelta = deltaA;
+      a.lastMatchDetail = buildRankingLastMatchDetail(match, "");
       a.history.push({ label: match.tournament || `#${index + 1}`, rating: a.rating, detail: `${match.tournament || ""} ${formatStageLabel(match.stage)}`.trim() });
       history.push({
         ...match,
@@ -412,6 +439,8 @@ function computeRatings() {
 
     a.lastDelta = deltaA;
     b.lastDelta = deltaB;
+    a.lastMatchDetail = buildRankingLastMatchDetail(match, match.playerB);
+    b.lastMatchDetail = buildRankingLastMatchDetail(match, match.playerA);
     a.peakRating = Math.max(a.peakRating, a.rating);
     b.peakRating = Math.max(b.peakRating, b.rating);
     a.games += playedGames;
@@ -493,10 +522,12 @@ function decisiveWinRate(row) {
 
 function renderRanking() {
   const query = normalizeName(els.searchInput.value).toLowerCase();
+  const deviations = calculateRatingDeviations(computed.rankings);
   const rows = sortRows(computed.rankings
     .filter((player) => player.name.toLowerCase().includes(query))
     .map((player) => ({
       ...player,
+      deviation: deviations.get(player.name) ?? 50,
       record: player.wins - player.losses,
       winRate: decisiveWinRate(player)
     })), sortState.ranking)
@@ -506,12 +537,45 @@ function renderRanking() {
         <td><span class="rank">${index + 1}</span></td>
         <td>${escapeHtml(player.name)}</td>
         <td><strong>${player.rating.toFixed(1)}</strong></td>
+        <td>${player.deviation.toFixed(1)}</td>
         <td>${player.wins}-${player.losses}-${player.draws}</td>
         <td>${rate.toFixed(1)}%</td>
-        <td>${formatDelta(player.lastDelta)}</td>
+        <td>${formatRankingLastDelta(player)}</td>
       </tr>`;
     });
-  els.rankingBody.innerHTML = rows.join("") || emptyRow(6, "まだランキング対象の試合がありません");
+  els.rankingBody.innerHTML = rows.join("") || emptyRow(7, "まだランキング対象の試合がありません");
+}
+
+function buildRankingLastMatchDetail(match, opponent) {
+  return {
+    date: match.date || "",
+    tournament: match.tournament || "",
+    stage: formatStageLabel(match.stage),
+    opponent: opponent || ""
+  };
+}
+
+function formatRankingLastDelta(player) {
+  const detail = player.lastMatchDetail;
+  if (!detail) return formatDelta(player.lastDelta);
+  const context = [
+    detail.date,
+    [detail.tournament, detail.stage].filter(Boolean).join(" "),
+    detail.opponent ? `vs ${detail.opponent}` : ""
+  ].filter(Boolean).join(" / ");
+  return `${formatDelta(player.lastDelta)}<span class="muted-cell ranking-last-detail">${escapeHtml(context)}</span>`;
+}
+
+function calculateRatingDeviations(players) {
+  const ratings = players.map((player) => Number(player.rating)).filter(Number.isFinite);
+  if (!ratings.length) return new Map();
+  const average = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+  const variance = ratings.reduce((sum, rating) => sum + (rating - average) ** 2, 0) / ratings.length;
+  const standardDeviation = Math.sqrt(variance);
+  return new Map(players.map((player) => [
+    player.name,
+    standardDeviation ? 50 + 10 * ((player.rating - average) / standardDeviation) : 50
+  ]));
 }
 
 function renderMatches() {
@@ -1038,6 +1102,7 @@ function renderSimulationControls() {
 
 function renderSimulationPreview() {
   const setup = getSimulationSetup();
+  simulationResultRenderState = null;
   const allWarnings = [...setup.warnings, ...setup.confirmed.warnings];
   els.simulationWarnings.innerHTML = allWarnings.map((warning) => `<div class="warning-item">${escapeHtml(warning)}</div>`).join("");
   els.simulationConfirmedBody.innerHTML = renderSimulationConfirmedRows(setup.confirmed.games);
@@ -1056,7 +1121,7 @@ function renderSimulationPreview() {
     const fixedCount = setup.confirmed.games.filter((game) => !game.pending).length;
     const pendingCount = setup.confirmed.games.filter((game) => game.pending).length;
     const count = fixedCount + pendingCount;
-    const total = getSimulationCount();
+    const total = FIXED_SIMULATION_COUNT;
     els.simulationStatus.textContent = setup.teamA.team === setup.teamB.team
       ? `${total.toLocaleString("ja-JP")}回実行できます。同じチーム同士のため、確定済み対局は参照しません。`
       : setup.teamA.source === "custom" || setup.teamB.source === "custom"
@@ -1129,8 +1194,7 @@ function renderCustomTeamSuggestions(input) {
   const query = normalizeName(input.value);
   const players = [...computed.players.keys()].sort((a, b) => a.localeCompare(b, "ja"));
   const matches = players
-    .filter((name) => !query || name.includes(query))
-    .slice(0, 8);
+    .filter((name) => !query || name.includes(query));
   if (!matches.length) {
     hideCustomTeamSuggestions();
     return;
@@ -1192,17 +1256,13 @@ function renderInlineSuggestions(input) {
     .map((option) => normalizeName(option.value))
     .filter(Boolean);
   const matches = uniqueInOrder(values)
-    .filter((value) => !query || value.includes(query))
-    .slice(0, 8);
+    .filter((value) => !query || value.includes(query));
   if (!matches.length) {
     hideInlineSuggestions();
     return;
   }
   const box = ensureInlineSuggestionBox();
-  const rect = input.getBoundingClientRect();
-  box.style.left = `${rect.left + window.scrollX}px`;
-  box.style.top = `${rect.bottom + window.scrollY + 4}px`;
-  box.style.width = `${rect.width}px`;
+  positionInlineSuggestionBox(input, box);
   box.innerHTML = matches.map((value) => `<button type="button" data-value="${escapeAttr(value)}">${escapeHtml(value)}</button>`).join("");
   box.querySelectorAll("button").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1215,6 +1275,22 @@ function renderInlineSuggestions(input) {
   });
   inlineSuggestionInput = input;
   box.classList.remove("hidden");
+}
+
+function positionInlineSuggestionBox(input, box = inlineSuggestionBox) {
+  if (!input || !box) return false;
+  const rect = input.getBoundingClientRect();
+  const isVisible = rect.bottom > 0 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth;
+  if (!isVisible) return false;
+  box.style.left = `${rect.left + window.scrollX}px`;
+  box.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  box.style.width = `${rect.width}px`;
+  return true;
+}
+
+function repositionInlineSuggestions() {
+  if (!inlineSuggestionInput || !inlineSuggestionBox || inlineSuggestionBox.classList.contains("hidden")) return;
+  if (!positionInlineSuggestionBox(inlineSuggestionInput)) hideInlineSuggestions();
 }
 
 function hideInlineSuggestions() {
@@ -1322,7 +1398,7 @@ function prepareSimulationTeam(team, side) {
   };
 }
 
-function getSimulationCount(input = els.simulationCountInput) {
+function getSimulationCount(input) {
   const value = Math.round(Number(input.value || 100000));
   if (!Number.isFinite(value)) return 100000;
   return Math.max(1, value);
@@ -1440,14 +1516,22 @@ function renderRegionalForecastPreview() {
   const setup = getRegionalForecastSetup();
   els.regionalForecastWarnings.innerHTML = setup.warnings.map((warning) => `<div class="warning-item">${escapeHtml(warning)}</div>`).join("");
   els.regionalForecastFixedSummary.innerHTML = "";
+  regionalForecastRenderState = null;
   els.regionalForecastBody.innerHTML = emptyRow(7, "優勝予測実行後に表示します");
   regionalAwardRenderState = null;
-  els.regionalAwardBody.innerHTML = emptyRow(6, "優勝予測実行後に表示します");
+  renderRegionalAwardRows();
   els.regionalForecastSampleLog.innerHTML = "";
   if (setup.warnings.length) {
     els.regionalForecastStatus.textContent = "地域2026のチーム編成を確認してください。";
   } else {
-    els.regionalForecastStatus.textContent = `${getRegionalForecastCount().toLocaleString("ja-JP")}回実行できます。予選A/Bリーグと仮定決勝トーナメントをまとめて計算します。`;
+    const total = getRegionalForecastCount();
+    const cachedResult = getRegionalForecastCachedResult(setup, total);
+    if (cachedResult) {
+      renderRegionalForecastCachedResult(setup, cachedResult);
+      els.regionalForecastStatus.textContent = "保存済みの10万回シミュレーション結果を表示しています。";
+      return;
+    }
+    els.regionalForecastStatus.textContent = `${total.toLocaleString("ja-JP")}回実行できます。予選A/Bリーグと仮定決勝トーナメントをまとめて計算します。`;
   }
 }
 
@@ -1484,6 +1568,13 @@ async function runRegionalForecast() {
 
   const total = getRegionalForecastCount();
   els.regionalForecastCountInput.value = total;
+  const cachedResult = getRegionalForecastCachedResult(setup, total);
+  if (cachedResult) {
+    renderRegionalForecastCachedResult(setup, cachedResult);
+    els.regionalForecastStatus.textContent = "保存済みの10万回シミュレーション結果を表示しています。";
+    showToast("保存済みの優勝予測を表示しました");
+    return;
+  }
   const chunkSize = 500;
   const runId = ++regionalForecastRunId;
   let completed = 0;
@@ -1496,8 +1587,9 @@ async function runRegionalForecast() {
   els.runRegionalForecastButton.textContent = "停止して結果表示";
   els.regionalForecastBody.innerHTML = emptyRow(7, "計算中です");
   els.regionalForecastFixedSummary.innerHTML = "";
+  regionalForecastRenderState = null;
   regionalAwardRenderState = null;
-  els.regionalAwardBody.innerHTML = emptyRow(6, "計算中です");
+  renderRegionalAwardRows("計算中です");
   els.regionalForecastSampleLog.innerHTML = "";
 
   for (let done = 0; done < total && runId === regionalForecastRunId && !regionalForecastStopRequested; done += chunkSize) {
@@ -1524,6 +1616,9 @@ async function runRegionalForecast() {
     return;
   }
   renderRegionalForecastResult(stats, awardStats, completed, sample || [], setup);
+  if (!stopped && completed === FIXED_SIMULATION_COUNT) {
+    saveRegionalForecastCache(setup, stats, awardStats, completed, sample || []);
+  }
   els.regionalForecastStatus.textContent = stopped
     ? `${completed.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 回で停止しました。途中結果を表示しています。`
     : "完了しました。";
@@ -1571,12 +1666,78 @@ function createRegionalAwardStats(teams) {
           wins: 0,
           losses: 0,
           appearances: 0,
+          prelimWins: 0,
+          prelimLosses: 0,
+          prelimAppearances: 0,
           decidingWins: 0
         });
       }
     });
   });
   return players;
+}
+
+function createRegionalFixedAwardStats(setup, awardStats) {
+  const stats = new Map([...awardStats.keys()].map((name) => [name, {
+    wins: 0,
+    losses: 0,
+    appearances: 0,
+    prelimWins: 0,
+    prelimLosses: 0,
+    prelimAppearances: 0,
+    decidingWins: 0
+  }]));
+  setup.confirmedCache.forEach((confirmed, key) => {
+    const fixedGames = confirmed.games.filter((game) => !game.pending);
+    if (!fixedGames.length) return;
+    const label = key.split("__")[0] || "";
+    const isPrelim = label.startsWith("Aリーグ") || label.startsWith("Bリーグ");
+    const teams = regionalConfirmedTeamsFromKey(setup, key);
+    const alive = teams
+      ? {
+        A: new Set(teams.teamA.members.map((member) => member.statKey)),
+        B: new Set(teams.teamB.members.map((member) => member.statKey))
+      }
+      : null;
+    let decidingWinner = null;
+    fixedGames.forEach((game) => {
+      const aWon = game.winner.side === "A";
+      addRegionalFixedAwardGame(stats, game.a.name, aWon, isPrelim);
+      addRegionalFixedAwardGame(stats, game.b.name, !aWon, isPrelim);
+      if (!alive || decidingWinner) return;
+      if (aWon) alive.B.delete(game.b.statKey);
+      else alive.A.delete(game.a.statKey);
+      if (!alive.A.size || !alive.B.size) decidingWinner = aWon ? game.a.name : game.b.name;
+    });
+    if (decidingWinner) {
+      const row = stats.get(decidingWinner);
+      if (row) row.decidingWins++;
+    }
+  });
+  return stats;
+}
+
+function regionalConfirmedTeamsFromKey(setup, key) {
+  const parts = key.split("__");
+  const teamA = setup.teams.get(parts[1] || "");
+  const teamB = setup.teams.get(parts[3] || "");
+  if (!teamA || !teamB) return null;
+  return {
+    teamA: prepareSimulationTeam(teamA, "A"),
+    teamB: prepareSimulationTeam(teamB, "B")
+  };
+}
+
+function addRegionalFixedAwardGame(stats, name, won, isPrelim = false) {
+  const row = stats.get(name);
+  if (!row) return;
+  row.appearances++;
+  if (won) row.wins++;
+  else row.losses++;
+  if (!isPrelim) return;
+  row.prelimAppearances++;
+  if (won) row.prelimWins++;
+  else row.prelimLosses++;
 }
 
 function simulateRegionalTournament(setup, keepLog = false) {
@@ -1757,6 +1918,9 @@ function mergeRegionalAwardTotals(awardStats, playerStats) {
     target.wins += source.wins;
     target.losses += source.losses;
     target.appearances += source.appearances;
+    target.prelimWins += source.prelimWins;
+    target.prelimLosses += source.prelimLosses;
+    target.prelimAppearances += source.prelimAppearances;
     target.decidingWins += source.decidingWins;
   });
 }
@@ -1822,27 +1986,135 @@ function isRegionalFirstTimer(name) {
 }
 
 function renderRegionalForecastResult(stats, awardStats, total, sample, setup) {
-  const rows = [...stats.values()].sort((left, right) => {
-    const leagueCompare = String(left.league).localeCompare(String(right.league), "ja");
-    if (leagueCompare) return leagueCompare;
-    return right.champion - left.champion || right.semifinal - left.semifinal || regionalDisplayName(left.team).localeCompare(regionalDisplayName(right.team), "ja");
-  });
-  els.regionalForecastBody.innerHTML = rows.map((row) => {
-    const advance = row.first + row.second;
-    return `<tr>
-      <td>${escapeHtml(row.league || "-")}</td>
-      <td><strong>${escapeHtml(regionalDisplayName(row.team))}</strong></td>
-      <td>${formatRegionalRate(row.first, total)}</td>
-      <td>${formatRegionalRate(row.second, total)}</td>
-      <td><strong>${formatRegionalRate(advance, total)}</strong></td>
-      <td>${formatRegionalRate(row.runnerUp, total)}</td>
-      <td><strong>${formatRegionalRate(row.champion, total)}</strong></td>
-    </tr>`;
-  }).join("");
+  regionalForecastRenderState = { stats, total };
+  renderRegionalForecastRows();
   els.regionalForecastFixedSummary.innerHTML = renderRegionalFixedSummary(setup);
-  regionalAwardRenderState = { awardStats, total };
+  regionalAwardRenderState = { awardStats, fixedStats: createRegionalFixedAwardStats(setup, awardStats), total };
   renderRegionalAwardRows();
   els.regionalForecastSampleLog.innerHTML = renderRegionalSampleBracket(sample);
+}
+
+function getRegionalForecastCachedResult(setup, total) {
+  if (total !== FIXED_SIMULATION_COUNT) return null;
+  const cache = state.regionalForecastCache?.regional2026;
+  if (!cache || cache.key !== getRegionalForecastCacheKey(setup, total)) return null;
+  return cache;
+}
+
+function renderRegionalForecastCachedResult(setup, cachedResult) {
+  const awardStats = deserializeRegionalAwardStats(cachedResult.awardStats);
+  regionalForecastRenderState = { stats: deserializeRegionalForecastStats(cachedResult.stats), total: cachedResult.total };
+  renderRegionalForecastRows();
+  els.regionalForecastFixedSummary.innerHTML = cachedResult.fixedSummary || renderRegionalFixedSummary(setup);
+  regionalAwardRenderState = {
+    awardStats,
+    fixedStats: deserializeRegionalFixedAwardStats(cachedResult.fixedAwardStats),
+    total: cachedResult.total
+  };
+  renderRegionalAwardRows();
+  els.regionalForecastSampleLog.innerHTML = renderRegionalSampleBracket(cachedResult.sample || []);
+}
+
+function saveRegionalForecastCache(setup, stats, awardStats, total, sample) {
+  state.regionalForecastCache = normalizeRegionalForecastCache(state.regionalForecastCache);
+  state.regionalForecastCache.regional2026 = {
+    key: getRegionalForecastCacheKey(setup, total),
+    total,
+    stats: serializeRegionalForecastStats(stats),
+    awardStats: serializeRegionalAwardStats(awardStats),
+    fixedAwardStats: serializeRegionalFixedAwardStats(createRegionalFixedAwardStats(setup, awardStats)),
+    fixedSummary: renderRegionalFixedSummary(setup),
+    sample,
+    savedAt: new Date().toISOString()
+  };
+  saveState();
+}
+
+function getRegionalForecastCacheKey(setup, total) {
+  return hashString(JSON.stringify({
+    version: REGIONAL_FORECAST_CACHE_VERSION,
+    total,
+    settings: state.settings,
+    matches: state.matches,
+    rankingMeta: state.rankingMeta || [],
+    teams: setup.orderedTeams.map((team) => ({
+      team: team.team,
+      league: team.league || "",
+      members: team.members.map((member) => ({
+        name: member.name,
+        order: member.order,
+        slot: member.slot,
+        leader: !!member.leader,
+        rating: member.rating
+      }))
+    })),
+    bracket: REGIONAL_2026_BRACKET
+  }));
+}
+
+function serializeRegionalForecastStats(stats) {
+  return [...stats.values()].map((row) => ({
+    ...row,
+    team: regionalDisplayName(row.team)
+  }));
+}
+
+function deserializeRegionalForecastStats(rows = []) {
+  return new Map(rows.map((row) => [row.team, row]));
+}
+
+function serializeRegionalAwardStats(stats) {
+  return [...stats.values()];
+}
+
+function deserializeRegionalAwardStats(rows = []) {
+  return new Map(rows.map((row) => [row.name, row]));
+}
+
+function serializeRegionalFixedAwardStats(stats) {
+  return [...stats.entries()].map(([name, row]) => ({ name, ...row }));
+}
+
+function deserializeRegionalFixedAwardStats(rows = []) {
+  return new Map(rows.map((row) => [row.name, {
+    wins: row.wins || 0,
+    losses: row.losses || 0,
+    appearances: row.appearances || 0,
+    prelimWins: row.prelimWins || 0,
+    prelimLosses: row.prelimLosses || 0,
+    prelimAppearances: row.prelimAppearances || 0,
+    decidingWins: row.decidingWins || 0
+  }]));
+}
+
+function renderRegionalForecastRows() {
+  if (!regionalForecastRenderState) {
+    els.regionalForecastBody.innerHTML = emptyRow(7, "優勝予測実行後に表示します");
+    return;
+  }
+  const { stats, total } = regionalForecastRenderState;
+  const rows = [...stats.values()].map((row) => ({
+    ...row,
+    team: regionalDisplayName(row.team),
+    advance: row.first + row.second
+  }));
+  const sortedRows = sortState.regionalForecast.touched
+    ? sortRows(rows, sortState.regionalForecast)
+    : rows.sort((left, right) => {
+      const leagueCompare = String(left.league).localeCompare(String(right.league), "ja");
+      if (leagueCompare) return leagueCompare;
+      return right.champion - left.champion || right.semifinal - left.semifinal || left.team.localeCompare(right.team, "ja");
+    });
+  els.regionalForecastBody.innerHTML = sortedRows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.league || "-")}</td>
+      <td><strong>${escapeHtml(row.team)}</strong></td>
+      <td>${formatRegionalRate(row.first, total)}</td>
+      <td>${formatRegionalRate(row.second, total)}</td>
+      <td><strong>${formatRegionalRate(row.advance, total)}</strong></td>
+      <td>${formatRegionalRate(row.runnerUp, total)}</td>
+      <td><strong>${formatRegionalRate(row.champion, total)}</strong></td>
+    </tr>`).join("");
 }
 
 function renderRegionalSampleBracket(sample) {
@@ -1903,39 +2175,149 @@ function renderRegionalSampleCards(matches = []) {
   `).join("");
 }
 
-function renderRegionalAwardRows() {
+function renderRegionalAwardRows(emptyMessage = "優勝予測実行後に表示します") {
+  const columns = getRegionalAwardColumns(regionalAwardCurrentKey);
+  renderRegionalAwardHead(columns);
   if (!regionalAwardRenderState) {
-    els.regionalAwardBody.innerHTML = emptyRow(6, "優勝予測実行後に表示します");
+    els.regionalAwardBody.innerHTML = emptyRow(columns.length, emptyMessage);
     return;
   }
-  const { awardStats, total } = regionalAwardRenderState;
+  const { awardStats, fixedStats, total } = regionalAwardRenderState;
   const rows = [...awardStats.values()]
     .filter((row) => regionalAwardCurrentKey !== "fightingSpirit" || row.firstTimer)
-    .sort((left, right) => {
-      const awardDiff = right.awards[regionalAwardCurrentKey] - left.awards[regionalAwardCurrentKey];
-      if (awardDiff) return awardDiff;
-      return left.name.localeCompare(right.name, "ja");
+    .map((row) => {
+      const fixed = fixedStats.get(row.name) || createEmptyRegionalFixedAwardRow();
+      const awardCount = row.awards[regionalAwardCurrentKey] || 0;
+      const averageWins = row.wins / Math.max(1, total);
+      const averageLosses = row.losses / Math.max(1, total);
+      const averageAppearances = row.appearances / Math.max(1, total);
+      const averagePrelimWins = row.prelimWins / Math.max(1, total);
+      const averagePrelimAppearances = row.prelimAppearances / Math.max(1, total);
+      return {
+        ...row,
+        fixed,
+        awardCount,
+        awardRate: total ? awardCount / total : 0,
+        averageWins,
+        averageRecord: averageWins - averageLosses,
+        averageWinRate: averageAppearances ? averageWins / averageAppearances : -1,
+        averageAppearances,
+        fixedWins: fixed.wins,
+        fixedRecord: fixed.wins - fixed.losses,
+        fixedWinRate: fixed.appearances ? fixed.wins / fixed.appearances : -1,
+        fixedAppearances: fixed.appearances,
+        averagePrelimWins,
+        averagePrelimAppearances,
+        fixedPrelimWins: fixed.prelimWins,
+        fixedPrelimAppearances: fixed.prelimAppearances
+      };
     });
-  els.regionalAwardBody.innerHTML = rows.map((row, index) => {
-    const rank = index + 1;
-    const awardCount = row.awards[regionalAwardCurrentKey] || 0;
+  const rankedRows = rows
+    .slice()
+    .sort((left, right) => right.awardRate - left.awardRate || left.name.localeCompare(right.name, "ja"))
+    .map((row, index) => ({ ...row, awardRank: index + 1 }));
+  resetRegionalAwardSortIfNeeded(columns);
+  const sortedRows = sortState.regionalAwards.touched
+    ? sortRows(rankedRows, sortState.regionalAwards)
+    : rankedRows;
+  els.regionalAwardBody.innerHTML = sortedRows.map((row) => {
+    const rank = row.awardRank;
+    const cells = columns.map((column) => column.render(row, row.fixed, total, row.awardCount, rank));
     return `<tr class="${rank <= 3 ? `award-rank-row award-rank-${rank}` : ""}">
-      <td><span class="award-rank">${rank}</span></td>
-      <td><strong>${escapeHtml(row.name)}</strong><span class="muted-cell">${escapeHtml(regionalDisplayName(row.team))}${row.firstTimer ? " / 初出場" : ""}</span></td>
-      <td><strong>${formatRegionalRate(awardCount, total)}</strong></td>
-      <td>${formatRegionalAverage(row.wins, total)}-${formatRegionalAverage(row.losses, total)}</td>
-      <td>${formatRegionalAverage(row.appearances, total)}</td>
-      <td>${formatRegionalAverage(row.decidingWins, total)}</td>
+      ${cells.map((cell) => `<td>${cell}</td>`).join("")}
     </tr>`;
-  }).join("") || emptyRow(6, "該当者なし");
+  }).join("") || emptyRow(columns.length, "該当者なし");
+}
+
+function getRegionalAwardColumns(awardKey) {
+  const base = [
+    { label: "#", render: (row, fixed, total, awardCount, rank) => `<span class="award-rank">${rank}</span>` },
+    { label: "候補", sortKey: "name", render: (row) => `<strong>${escapeHtml(row.name)}</strong><span class="muted-cell">${escapeHtml(regionalDisplayName(row.team))}${row.firstTimer ? " / 初出場" : ""}</span>` },
+    { label: "受賞率", sortKey: "awardRate", render: (row, fixed, total, awardCount) => `<strong>${formatRegionalAwardRate(awardCount, total)}</strong>` }
+  ];
+  if (awardKey === "mostWins") {
+    return [
+      ...base,
+      { label: "平均勝数", sortKey: "averageWins", render: (row, fixed, total) => formatRegionalAverage(row.wins, total) },
+      { label: "確定勝数", sortKey: "fixedWins", render: (row, fixed) => fixed.wins }
+    ];
+  }
+  if (awardKey === "bestWinRate" || awardKey === "fightingSpirit") {
+    return [
+      ...base,
+      { label: "平均勝敗", sortKey: "averageRecord", render: (row, fixed, total) => `${formatRegionalAverage(row.wins, total)}-${formatRegionalAverage(row.losses, total)}` },
+      { label: "平均勝率", sortKey: "averageWinRate", render: (row, fixed, total) => formatRegionalRatio(row.wins, row.appearances, total) },
+      { label: "確定勝敗", sortKey: "fixedRecord", render: (row, fixed) => `${fixed.wins}-${fixed.losses}` },
+      { label: "確定勝率", sortKey: "fixedWinRate", render: (row, fixed) => formatRegionalFixedRatio(fixed.wins, fixed.appearances) }
+    ];
+  }
+  if (awardKey === "mostGames") {
+    return [
+      ...base,
+      { label: "平均対局数", sortKey: "averageAppearances", render: (row, fixed, total) => formatRegionalAverage(row.appearances, total) },
+      { label: "確定対局数", sortKey: "fixedAppearances", render: (row, fixed) => fixed.appearances }
+    ];
+  }
+  if (awardKey === "bestPrelim") {
+    return [
+      ...base,
+      { label: "平均予選勝数", sortKey: "averagePrelimWins", render: (row, fixed, total) => formatRegionalAverage(row.prelimWins, total) },
+      { label: "平均予選対局数", sortKey: "averagePrelimAppearances", render: (row, fixed, total) => formatRegionalAverage(row.prelimAppearances, total) },
+      { label: "確定予選勝数", sortKey: "fixedPrelimWins", render: (row, fixed) => fixed.prelimWins },
+      { label: "確定予選対局数", sortKey: "fixedPrelimAppearances", render: (row, fixed) => fixed.prelimAppearances }
+    ];
+  }
+  return base;
+}
+
+function renderRegionalAwardHead(columns) {
+  els.regionalAwardHead.innerHTML = `<tr>${columns.map((column) => column.sortKey
+    ? `<th data-sort="${escapeAttr(column.sortKey)}">${escapeHtml(column.label)}</th>`
+    : `<th>${escapeHtml(column.label)}</th>`).join("")}</tr>`;
+  els.regionalAwardHead.querySelectorAll("th[data-sort]").forEach(registerSortableHeader);
+}
+
+function resetRegionalAwardSortIfNeeded(columns) {
+  if (columns.some((column) => column.sortKey === sortState.regionalAwards.key)) return;
+  sortState.regionalAwards.key = "awardRate";
+  sortState.regionalAwards.direction = "desc";
+  sortState.regionalAwards.touched = false;
+}
+
+function createEmptyRegionalFixedAwardRow() {
+  return {
+    wins: 0,
+    losses: 0,
+    appearances: 0,
+    prelimWins: 0,
+    prelimLosses: 0,
+    prelimAppearances: 0,
+    decidingWins: 0
+  };
 }
 
 function formatRegionalRate(count, total) {
   return `${total ? (count / total * 100).toFixed(2) : "0.00"}%`;
 }
 
+function formatRegionalAwardRate(count, total) {
+  if (!count || !total) return "0%";
+  return formatRegionalRate(count, total);
+}
+
 function formatRegionalAverage(value, count) {
   return (value / Math.max(1, count)).toFixed(1);
+}
+
+function formatRegionalRatio(wins, appearances, total) {
+  const averageWins = wins / Math.max(1, total);
+  const averageAppearances = appearances / Math.max(1, total);
+  return formatRegionalFixedRatio(averageWins, averageAppearances);
+}
+
+function formatRegionalFixedRatio(wins, appearances) {
+  if (!appearances) return "-";
+  return `${(wins / appearances * 100).toFixed(1)}%`;
 }
 
 function regionalDisplayName(teamOrName) {
@@ -1953,16 +2335,15 @@ async function runTeamSimulation() {
     return;
   }
 
-  const total = getSimulationCount();
-  els.simulationCountInput.value = total;
+  const total = FIXED_SIMULATION_COUNT;
   const chunkSize = 2500;
   const runId = ++simulationRunId;
   let completed = 0;
   const result = { aWins: 0, bWins: 0, games: 0, sample: null, players: createSimulationPlayerStats(setup.teamA.members, setup.teamB.members), scores: createSimulationScoreDistribution() };
   simulationRunning = true;
   simulationStopRequested = false;
-  els.runSimulationButton.disabled = false;
-  els.runSimulationButton.textContent = "停止して結果表示";
+  els.runSimulationButton.disabled = true;
+  els.runSimulationButton.textContent = "実行中...";
   els.simulationResult.innerHTML = "";
   els.simulationSampleLog.innerHTML = "";
   els.simulationPlayerStatsABody.innerHTML = emptyRow(9, "計算中です");
@@ -2002,8 +2383,8 @@ async function runTeamSimulation() {
     detailCard(`${setup.teamB.team} 勝率`, `${(bRate * 100).toFixed(2)}%`),
     detailCard("平均対局数", averageGames.toFixed(2))
   ].join("");
-  els.simulationPlayerStatsABody.innerHTML = renderSimulationPlayerStatsRows(setup.teamA.members, result.players, completed);
-  els.simulationPlayerStatsBBody.innerHTML = renderSimulationPlayerStatsRows(setup.teamB.members, result.players, completed);
+  simulationResultRenderState = { setup, result, total: completed };
+  renderSimulationPlayerStatsTables();
   els.simulationScoreBody.innerHTML = renderSimulationScoreRows(result.scores, completed);
   els.simulationSampleLog.innerHTML = result.sample.map((line) => `<li>${escapeHtml(line)}</li>`).join("");
   els.simulationStatus.textContent = stopped
@@ -2309,17 +2690,24 @@ function mergeSimulationPlayerStats(total, incoming) {
 
 function handleSimulationButton() {
   if (simulationRunning) {
-    simulationStopRequested = true;
-    els.runSimulationButton.textContent = "停止中...";
-    els.runSimulationButton.disabled = true;
-    els.simulationStatus.textContent = "停止しています。ここまでの結果を集計します...";
     return;
   }
   runTeamSimulation();
 }
 
+function renderSimulationPlayerStatsTables() {
+  if (!simulationResultRenderState) {
+    els.simulationPlayerStatsABody.innerHTML = emptyRow(9, "シミュレーション実行後に表示します");
+    els.simulationPlayerStatsBBody.innerHTML = emptyRow(9, "シミュレーション実行後に表示します");
+    return;
+  }
+  const { setup, result, total } = simulationResultRenderState;
+  els.simulationPlayerStatsABody.innerHTML = renderSimulationPlayerStatsRows(setup.teamA.members, result.players, total);
+  els.simulationPlayerStatsBBody.innerHTML = renderSimulationPlayerStatsRows(setup.teamB.members, result.players, total);
+}
+
 function renderSimulationPlayerStatsRows(members, stats, total) {
-  return members.map((member) => {
+  const rows = members.map((member) => {
     const row = stats.get(member.statKey);
     const appearances = row?.appearances || 0;
     const wins = row?.wins || 0;
@@ -2331,16 +2719,30 @@ function renderSimulationPlayerStatsRows(members, stats, total) {
     const stage2Wins = row?.stage2Wins || 0;
     const stage1Rate = stage1Appearances ? stage1Wins / stage1Appearances : 0;
     const stage2Rate = stage2Appearances ? stage2Wins / stage2Appearances : 0;
+    return {
+      name: simulationMemberLabel(member),
+      rating: Number(member.rating),
+      appearances: appearances / total,
+      wins: wins / total,
+      losses: losses / total,
+      winRate,
+      stage1Rate: stage1Appearances ? stage1Rate : -1,
+      stage2Wins: stage2Wins / total,
+      stage2Rate: stage2Appearances ? stage2Rate : -1
+    };
+  });
+  const sortedRows = sortRows(rows, sortState.simulationPlayerStats);
+  return sortedRows.map((row) => {
     return `<tr>
-      <td>${escapeHtml(simulationMemberLabel(member))}</td>
-      <td>${Number(member.rating).toFixed(1)}</td>
-      <td>${(appearances / total).toFixed(2)}</td>
-      <td>${(wins / total).toFixed(2)}</td>
-      <td>${(losses / total).toFixed(2)}</td>
-      <td><strong>${(winRate * 100).toFixed(1)}%</strong></td>
-      <td>${stage1Appearances ? `${(stage1Rate * 100).toFixed(1)}%` : "-"}</td>
-      <td>${(stage2Wins / total).toFixed(2)}</td>
-      <td>${stage2Appearances ? `${(stage2Rate * 100).toFixed(1)}%` : "-"}</td>
+      <td>${escapeHtml(row.name)}</td>
+      <td>${Number(row.rating).toFixed(1)}</td>
+      <td>${row.appearances.toFixed(2)}</td>
+      <td>${row.wins.toFixed(2)}</td>
+      <td>${row.losses.toFixed(2)}</td>
+      <td><strong>${(row.winRate * 100).toFixed(1)}%</strong></td>
+      <td>${row.stage1Rate >= 0 ? `${(row.stage1Rate * 100).toFixed(1)}%` : "-"}</td>
+      <td>${row.stage2Wins.toFixed(2)}</td>
+      <td>${row.stage2Rate >= 0 ? `${(row.stage2Rate * 100).toFixed(1)}%` : "-"}</td>
     </tr>`;
   }).join("") || emptyRow(9, "メンバーがありません");
 }
@@ -2662,9 +3064,19 @@ function addMatchFromForm() {
 function clearMatchPlayerInputs() {
   els.matchForm.elements.playerA.value = "";
   els.matchForm.elements.playerB.value = "";
+  advanceMatchStageGame();
   updateDateInputState(els.matchDate);
   hideInlineSuggestions();
   renderFormOptions();
+}
+
+function advanceMatchStageGame() {
+  const currentGame = Number(els.matchStageGameSelect.value || 0);
+  const nextGame = currentGame + 1;
+  if (!MATCH_STAGE_GAMES.includes(String(nextGame))) return;
+  els.matchStageGameSelect.value = String(nextGame);
+  matchStageTouched = true;
+  updateMatchStageInput();
 }
 
 function addTeamEntryFromForm() {
@@ -3238,6 +3650,8 @@ function applyExternalState(parsed) {
   state.settings = { ...state.settings, ...(next.settings || {}) };
   state.matches = (next.matches || []).map(cleanMatch);
   state.rankingMeta = next.rankingMeta || [];
+  state.regionalForecastCache = normalizeRegionalForecastCache(next.regionalForecastCache);
+  delete state.simulationCache;
   state.ratingFormulaVersion = 2;
   state.savedAt = next.savedAt || new Date().toISOString();
   computed = computeRatings();
@@ -3250,6 +3664,7 @@ function statePayload() {
     settings: state.settings,
     matches: state.matches,
     rankingMeta: state.rankingMeta || [],
+    regionalForecastCache: normalizeRegionalForecastCache(state.regionalForecastCache),
     ratingFormulaVersion: 2,
     savedAt: state.savedAt || new Date().toISOString()
   };
@@ -3382,6 +3797,14 @@ function csvCell(value) {
   return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
+function hashString(text) {
+  let hash = 5381;
+  for (let index = 0; index < text.length; index++) {
+    hash = ((hash << 5) + hash) ^ text.charCodeAt(index);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 function emptyRow(cols, text) {
   return `<tr><td colspan="${cols}">${escapeHtml(text)}</td></tr>`;
 }
@@ -3400,6 +3823,10 @@ function updateSort(header) {
   leagueRatingBody: "leagueRatings",
   teamRatingBody: "teamRatings",
   matchesBody: "matches",
+  simulationPlayerStatsABody: "simulationPlayerStats",
+  simulationPlayerStatsBBody: "simulationPlayerStats",
+  regionalForecastBody: "regionalForecast",
+  regionalAwardBody: "regionalAwards",
   playerTournamentBody: "playerTournaments",
   playerOpponentBody: "playerOpponents",
   playerRatingHistoryBody: "playerRatingHistory",
@@ -3415,6 +3842,18 @@ function updateSort(header) {
   }
   current.key = key;
   current.touched = true;
+  if (tableName === "simulationPlayerStats") {
+    renderSimulationPlayerStatsTables();
+    return;
+  }
+  if (tableName === "regionalForecast") {
+    renderRegionalForecastRows();
+    return;
+  }
+  if (tableName === "regionalAwards") {
+    renderRegionalAwardRows();
+    return;
+  }
   render();
 }
 
@@ -3438,7 +3877,13 @@ function sortValue(row, key) {
 }
 
 function isNumericSortKey(key) {
-  return ["rating", "record", "winRate", "lastDelta", "overallRank", "overallRankChange", "start", "end", "delta", "score", "average", "count", "index", "expected", "order"].includes(key);
+  return [
+    "rating", "deviation", "record", "winRate", "lastDelta", "overallRank", "overallRankChange", "start", "end", "delta",
+    "score", "average", "count", "index", "expected", "order", "appearances", "wins", "losses", "stage1Rate",
+    "stage2Wins", "stage2Rate", "first", "second", "advance", "runnerUp", "champion", "awardRate", "averageWins",
+    "fixedWins", "averageRecord", "averageWinRate", "fixedRecord", "fixedWinRate", "averageAppearances",
+    "fixedAppearances", "averagePrelimWins", "averagePrelimAppearances", "fixedPrelimWins", "fixedPrelimAppearances"
+  ].includes(key);
 }
 
 function compareValues(left, right) {

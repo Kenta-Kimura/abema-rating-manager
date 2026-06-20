@@ -20141,11 +20141,11 @@
       "winner": "A",
       "aWins": 1,
       "bWins": 0,
-      "note": "",
       "aBefore": 1436.5,
       "bBefore": 1537.2,
       "aAfter": 1457,
-      "bAfter": 1516.7
+      "bAfter": 1516.7,
+      "note": ""
     },
     {
       "date": "2026-05-30",
@@ -20159,11 +20159,11 @@
       "winner": "B",
       "aWins": 0,
       "bWins": 1,
-      "note": "",
       "aBefore": 1500,
       "bBefore": 1486.3,
       "aAfter": 1483.4,
-      "bAfter": 1502.9
+      "bAfter": 1502.9,
+      "note": ""
     },
     {
       "date": "2026-05-30",
@@ -20177,11 +20177,11 @@
       "winner": "B",
       "aWins": 0,
       "bWins": 1,
-      "note": "",
       "aBefore": 1568.6,
       "bBefore": 1555.6,
       "aAfter": 1552,
-      "bAfter": 1572.2
+      "bAfter": 1572.2,
+      "note": ""
     },
     {
       "date": "2026-05-30",
@@ -20195,11 +20195,11 @@
       "winner": "B",
       "aWins": 0,
       "bWins": 1,
-      "note": "",
       "aBefore": 1550.6,
       "bBefore": 1454.3,
       "aAfter": 1530.3,
-      "bAfter": 1474.6
+      "bAfter": 1474.6,
+      "note": ""
     },
     {
       "date": "2026-05-30",
@@ -20213,11 +20213,11 @@
       "winner": "B",
       "aWins": 0,
       "bWins": 1,
-      "note": "",
       "aBefore": 1409.5,
       "bBefore": 1630.2,
       "aAfter": 1402.5,
-      "bAfter": 1637.2
+      "bAfter": 1637.2,
+      "note": ""
     },
     {
       "date": "2026-05-30",
@@ -20231,11 +20231,11 @@
       "winner": "A",
       "aWins": 1,
       "bWins": 0,
-      "note": "",
       "aBefore": 1457,
       "bBefore": 1572.2,
       "aAfter": 1478.1,
-      "bAfter": 1551.1
+      "bAfter": 1551.1,
+      "note": ""
     },
     {
       "date": "2026-05-30",
@@ -20249,11 +20249,333 @@
       "winner": "B",
       "aWins": 0,
       "bWins": 1,
-      "note": "",
       "aBefore": 1478.1,
       "bBefore": 1502.9,
       "aAfter": 1463.2,
-      "bAfter": 1517.8
+      "bAfter": 1517.8,
+      "note": ""
+    },
+    {
+      "date": "2026-06-06",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 1組 1局",
+      "teamA": "サウスゴッツ大阪",
+      "playerA": "古森悠太",
+      "teamB": "中国・四国ナヴィセトス",
+      "playerB": "吉池隆真",
+      "sente": "B",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
+    },
+    {
+      "date": "2026-06-06",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 1組 2局",
+      "teamA": "サウスゴッツ大阪",
+      "playerA": "畠山鎮",
+      "teamB": "中国・四国ナヴィセトス",
+      "playerB": "菅井竜也",
+      "sente": "B",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
+    },
+    {
+      "date": "2026-06-06",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 1組 3局",
+      "teamA": "サウスゴッツ大阪",
+      "playerA": "山下数毅",
+      "teamB": "中国・四国ナヴィセトス",
+      "playerB": "糸谷哲郎",
+      "sente": "B",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
+    },
+    {
+      "date": "2026-06-06",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 1組 4局",
+      "teamA": "サウスゴッツ大阪",
+      "playerA": "上野裕寿",
+      "teamB": "中国・四国ナヴィセトス",
+      "playerB": "増田康宏",
+      "sente": "B",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
+    },
+    {
+      "date": "2026-06-06",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 1組 5局",
+      "teamA": "サウスゴッツ大阪",
+      "playerA": "斎藤慎太郎",
+      "teamB": "中国・四国ナヴィセトス",
+      "playerB": "藤本渚",
+      "sente": "A",
+      "winner": "A",
+      "aWins": 1,
+      "bWins": 0,
+      "note": ""
+    },
+    {
+      "date": "2026-06-06",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 1組 6局",
+      "teamA": "サウスゴッツ大阪",
+      "playerA": "斎藤慎太郎",
+      "teamB": "中国・四国ナヴィセトス",
+      "playerB": "吉池隆真",
+      "sente": "A",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
+    },
+    {
+      "date": "2026-06-13",
+      "tournament": "地域2026",
+      "stage": "予選 リーグA 2組 1局",
+      "teamA": "北海道・東北バルペックス",
+      "playerA": "屋敷伸之",
+      "teamB": "中部トライキングス",
+      "playerB": "服部慎一郎",
+      "sente": "A",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
+    },
+    {
+      "date": "2026-06-13",
+      "tournament": "地域2026",
+      "stage": "予選 リーグA 2組 2局",
+      "teamA": "北海道・東北バルペックス",
+      "playerA": "中村太地",
+      "teamB": "中部トライキングス",
+      "playerB": "杉本昌隆",
+      "sente": "B",
+      "winner": "A",
+      "aWins": 1,
+      "bWins": 0,
+      "note": ""
+    },
+    {
+      "date": "2026-06-13",
+      "tournament": "地域2026",
+      "stage": "予選 リーグA 2組 3局",
+      "teamA": "北海道・東北バルペックス",
+      "playerA": "石田直裕",
+      "teamB": "中部トライキングス",
+      "playerB": "柵木幹太",
+      "sente": "B",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
+    },
+    {
+      "date": "2026-06-13",
+      "tournament": "地域2026",
+      "stage": "予選 リーグA 2組 4局",
+      "teamA": "北海道・東北バルペックス",
+      "playerA": "齊藤優希",
+      "teamB": "中部トライキングス",
+      "playerB": "澤田真吾",
+      "sente": "B",
+      "winner": "A",
+      "aWins": 1,
+      "bWins": 0,
+      "note": ""
+    },
+    {
+      "date": "2026-06-13",
+      "tournament": "地域2026",
+      "stage": "予選 リーグA 2組 5局",
+      "teamA": "北海道・東北バルペックス",
+      "playerA": "広瀬章人",
+      "teamB": "中部トライキングス",
+      "playerB": "青嶋未来",
+      "sente": "A",
+      "winner": "A",
+      "aWins": 1,
+      "bWins": 0,
+      "note": ""
+    },
+    {
+      "date": "2026-06-13",
+      "tournament": "地域2026",
+      "stage": "予選 リーグA 2組 6局",
+      "teamA": "北海道・東北バルペックス",
+      "playerA": "中村太地",
+      "teamB": "中部トライキングス",
+      "playerB": "柵木幹太",
+      "sente": "B",
+      "winner": "A",
+      "aWins": 1,
+      "bWins": 0,
+      "note": ""
+    },
+    {
+      "date": "2026-06-13",
+      "tournament": "地域2026",
+      "stage": "予選 リーグA 2組 7局",
+      "teamA": "北海道・東北バルペックス",
+      "playerA": "中村太地",
+      "teamB": "中部トライキングス",
+      "playerB": "服部慎一郎",
+      "sente": "B",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
+    },
+    {
+      "date": "2026-06-13",
+      "tournament": "地域2026",
+      "stage": "予選 リーグA 2組 8局",
+      "teamA": "北海道・東北バルペックス",
+      "playerA": "齊藤優希",
+      "teamB": "中部トライキングス",
+      "playerB": "服部慎一郎",
+      "sente": "B",
+      "winner": "A",
+      "aWins": 1,
+      "bWins": 0,
+      "note": ""
+    },
+    {
+      "date": "2026-06-20",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 2組 1局",
+      "teamA": "北関東ブリッツァーズ",
+      "playerA": "三枚堂達也",
+      "teamB": "ノース・トラッズ神戸",
+      "playerB": "山崎隆之",
+      "sente": "A",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
+    },
+    {
+      "date": "2026-06-20",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 2組 2局",
+      "teamA": "北関東ブリッツァーズ",
+      "playerA": "羽生善治",
+      "teamB": "ノース・トラッズ神戸",
+      "playerB": "谷川浩司",
+      "sente": "A",
+      "winner": "A",
+      "aWins": 1,
+      "bWins": 0,
+      "note": ""
+    },
+    {
+      "date": "2026-06-20",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 2組 3局",
+      "teamA": "北関東ブリッツァーズ",
+      "playerA": "木村一基",
+      "teamB": "ノース・トラッズ神戸",
+      "playerB": "佐藤康光",
+      "sente": "A",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
+    },
+    {
+      "date": "2026-06-20",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 2組 4局",
+      "teamA": "北関東ブリッツァーズ",
+      "playerA": "佐藤天彦",
+      "teamB": "ノース・トラッズ神戸",
+      "playerB": "稲葉陽",
+      "sente": "A",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
+    },
+    {
+      "date": "2026-06-20",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 2組 5局",
+      "teamA": "北関東ブリッツァーズ",
+      "playerA": "藤井聡太",
+      "teamB": "ノース・トラッズ神戸",
+      "playerB": "豊島将之",
+      "sente": "B",
+      "winner": "A",
+      "aWins": 1,
+      "bWins": 0,
+      "note": ""
+    },
+    {
+      "date": "2026-06-20",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 2組 6局",
+      "teamA": "北関東ブリッツァーズ",
+      "playerA": "羽生善治",
+      "teamB": "ノース・トラッズ神戸",
+      "playerB": "山崎隆之",
+      "sente": "B",
+      "winner": "B",
+      "aWins": 0,
+      "bWins": 1,
+      "note": ""
+    },
+    {
+      "date": "2026-06-20",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 2組 7局",
+      "teamA": "北関東ブリッツァーズ",
+      "playerA": "藤井聡太",
+      "teamB": "ノース・トラッズ神戸",
+      "playerB": "山崎隆之",
+      "sente": "A",
+      "winner": "A",
+      "aWins": 1,
+      "bWins": 0,
+      "note": ""
+    },
+    {
+      "date": "2026-06-20",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 2組 8局",
+      "teamA": "北関東ブリッツァーズ",
+      "playerA": "藤井聡太",
+      "teamB": "ノース・トラッズ神戸",
+      "playerB": "佐藤康光",
+      "sente": "A",
+      "winner": "A",
+      "aWins": 1,
+      "bWins": 0,
+      "note": ""
+    },
+    {
+      "date": "2026-06-20",
+      "tournament": "地域2026",
+      "stage": "予選 リーグB 2組 9局",
+      "teamA": "北関東ブリッツァーズ",
+      "playerA": "藤井聡太",
+      "teamB": "ノース・トラッズ神戸",
+      "playerB": "稲葉陽",
+      "sente": "A",
+      "winner": "A",
+      "aWins": 1,
+      "bWins": 0,
+      "note": ""
     }
   ],
   "rankingMeta": [
@@ -23651,6 +23973,1386 @@
       "currentRating": 1516.7
     }
   ],
+  "regionalForecastCache": {
+    "version": 1,
+    "regional2026": {
+      "key": "sw6jps",
+      "total": 100000,
+      "stats": [
+        {
+          "league": "A",
+          "team": "ルシーグ横浜",
+          "first": 0,
+          "second": 15018,
+          "semifinal": 15018,
+          "finalist": 1829,
+          "runnerUp": 1423,
+          "champion": 406
+        },
+        {
+          "league": "A",
+          "team": "九州サザンフェニックス",
+          "first": 62880,
+          "second": 22257,
+          "semifinal": 85137,
+          "finalist": 24976,
+          "runnerUp": 17759,
+          "champion": 7217
+        },
+        {
+          "league": "A",
+          "team": "北海道・東北バルペックス",
+          "first": 37120,
+          "second": 29753,
+          "semifinal": 66873,
+          "finalist": 12510,
+          "runnerUp": 9857,
+          "champion": 2653
+        },
+        {
+          "league": "A",
+          "team": "中部トライキングス",
+          "first": 0,
+          "second": 32972,
+          "semifinal": 32972,
+          "finalist": 6069,
+          "runnerUp": 4278,
+          "champion": 1791
+        },
+        {
+          "league": "B",
+          "team": "中国・四国ナヴィセトス",
+          "first": 34506,
+          "second": 53181,
+          "semifinal": 87687,
+          "finalist": 66644,
+          "runnerUp": 38075,
+          "champion": 28569
+        },
+        {
+          "league": "B",
+          "team": "サウスゴッツ大阪",
+          "first": 0,
+          "second": 4866,
+          "semifinal": 4866,
+          "finalist": 1654,
+          "runnerUp": 1411,
+          "champion": 243
+        },
+        {
+          "league": "B",
+          "team": "北関東ブリッツァーズ",
+          "first": 65494,
+          "second": 30192,
+          "semifinal": 95686,
+          "finalist": 80880,
+          "runnerUp": 22917,
+          "champion": 57963
+        },
+        {
+          "league": "B",
+          "team": "ノース・トラッズ神戸",
+          "first": 0,
+          "second": 11761,
+          "semifinal": 11761,
+          "finalist": 5438,
+          "runnerUp": 4280,
+          "champion": 1158
+        }
+      ],
+      "awardStats": [
+        {
+          "name": "森内俊之",
+          "team": "ルシーグ横浜",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 175,
+            "bestWinRate": 48,
+            "mostGames": 335,
+            "bestPrelim": 443,
+            "fightingSpirit": 0
+          },
+          "wins": 135081,
+          "losses": 222478,
+          "appearances": 357559,
+          "prelimWins": 123939,
+          "prelimLosses": 206853,
+          "prelimAppearances": 330792,
+          "decidingWins": 16908
+        },
+        {
+          "name": "岩村凛太朗",
+          "team": "ルシーグ横浜",
+          "firstTimer": true,
+          "awards": {
+            "mostWins": 47,
+            "bestWinRate": 15,
+            "mostGames": 100,
+            "bestPrelim": 109,
+            "fightingSpirit": 4693
+          },
+          "wins": 98110,
+          "losses": 230002,
+          "appearances": 328112,
+          "prelimWins": 89927,
+          "prelimLosses": 214022,
+          "prelimAppearances": 303949,
+          "decidingWins": 9827
+        },
+        {
+          "name": "斎藤明日斗",
+          "team": "ルシーグ横浜",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 137,
+            "bestWinRate": 15,
+            "mostGames": 454,
+            "bestPrelim": 847,
+            "fightingSpirit": 0
+          },
+          "wins": 289393,
+          "losses": 231795,
+          "appearances": 521188,
+          "prelimWins": 281996,
+          "prelimLosses": 215804,
+          "prelimAppearances": 497800,
+          "decidingWins": 8366
+        },
+        {
+          "name": "伊藤匠",
+          "team": "ルシーグ横浜",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 121,
+            "bestWinRate": 30,
+            "mostGames": 249,
+            "bestPrelim": 295,
+            "fightingSpirit": 0
+          },
+          "wins": 122418,
+          "losses": 225054,
+          "appearances": 347472,
+          "prelimWins": 112230,
+          "prelimLosses": 209299,
+          "prelimAppearances": 321529,
+          "decidingWins": 14198
+        },
+        {
+          "name": "阿久津主税",
+          "team": "ルシーグ横浜",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 3,
+            "bestWinRate": 2,
+            "mostGames": 16,
+            "bestPrelim": 24,
+            "fightingSpirit": 0
+          },
+          "wins": 67213,
+          "losses": 236757,
+          "appearances": 303970,
+          "prelimWins": 61611,
+          "prelimLosses": 220544,
+          "prelimAppearances": 282155,
+          "decidingWins": 5232
+        },
+        {
+          "name": "深浦康市",
+          "team": "九州サザンフェニックス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 122,
+            "bestWinRate": 405,
+            "mostGames": 109,
+            "bestPrelim": 137,
+            "fightingSpirit": 0
+          },
+          "wins": 236108,
+          "losses": 200807,
+          "appearances": 436915,
+          "prelimWins": 185295,
+          "prelimLosses": 101948,
+          "prelimAppearances": 287243,
+          "decidingWins": 13897
+        },
+        {
+          "name": "佐々木大地",
+          "team": "九州サザンフェニックス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 745,
+            "bestWinRate": 1478,
+            "mostGames": 774,
+            "bestPrelim": 1161,
+            "fightingSpirit": 0
+          },
+          "wins": 365184,
+          "losses": 193024,
+          "appearances": 558208,
+          "prelimWins": 302635,
+          "prelimLosses": 96354,
+          "prelimAppearances": 398989,
+          "decidingWins": 119182
+        },
+        {
+          "name": "古賀悠聖",
+          "team": "九州サザンフェニックス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 95,
+            "bestWinRate": 70,
+            "mostGames": 206,
+            "bestPrelim": 35,
+            "fightingSpirit": 0
+          },
+          "wins": 163515,
+          "losses": 293439,
+          "appearances": 456954,
+          "prelimWins": 101597,
+          "prelimLosses": 196741,
+          "prelimAppearances": 298338,
+          "decidingWins": 18820
+        },
+        {
+          "name": "永瀬拓矢",
+          "team": "九州サザンフェニックス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 1951,
+            "bestWinRate": 3608,
+            "mostGames": 1610,
+            "bestPrelim": 1125,
+            "fightingSpirit": 0
+          },
+          "wins": 365910,
+          "losses": 168317,
+          "appearances": 534227,
+          "prelimWins": 261456,
+          "prelimLosses": 79099,
+          "prelimAppearances": 340555,
+          "decidingWins": 41530
+        },
+        {
+          "name": "西田拓也",
+          "team": "九州サザンフェニックス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 419,
+            "bestWinRate": 190,
+            "mostGames": 979,
+            "bestPrelim": 285,
+            "fightingSpirit": 0
+          },
+          "wins": 289565,
+          "losses": 286667,
+          "appearances": 576232,
+          "prelimWins": 217237,
+          "prelimLosses": 191884,
+          "prelimAppearances": 409121,
+          "decidingWins": 23901
+        },
+        {
+          "name": "屋敷伸之",
+          "team": "北海道・東北バルペックス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 8,
+            "bestWinRate": 5,
+            "mostGames": 43,
+            "bestPrelim": 9,
+            "fightingSpirit": 0
+          },
+          "wins": 104808,
+          "losses": 315629,
+          "appearances": 420437,
+          "prelimWins": 75594,
+          "prelimLosses": 240873,
+          "prelimAppearances": 316467,
+          "decidingWins": 7711
+        },
+        {
+          "name": "広瀬章人",
+          "team": "北海道・東北バルペックス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 1189,
+            "bestWinRate": 1540,
+            "mostGames": 1270,
+            "bestPrelim": 1355,
+            "fightingSpirit": 0
+          },
+          "wins": 332229,
+          "losses": 190304,
+          "appearances": 522533,
+          "prelimWins": 267404,
+          "prelimLosses": 120329,
+          "prelimAppearances": 387733,
+          "decidingWins": 29995
+        },
+        {
+          "name": "齊藤優希",
+          "team": "北海道・東北バルペックス",
+          "firstTimer": true,
+          "awards": {
+            "mostWins": 988,
+            "bestWinRate": 1293,
+            "mostGames": 1205,
+            "bestPrelim": 2259,
+            "fightingSpirit": 72336
+          },
+          "wins": 381283,
+          "losses": 200016,
+          "appearances": 581299,
+          "prelimWins": 331247,
+          "prelimLosses": 128065,
+          "prelimAppearances": 459312,
+          "decidingWins": 119962
+        },
+        {
+          "name": "中村太地",
+          "team": "北海道・東北バルペックス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 215,
+            "bestWinRate": 47,
+            "mostGames": 918,
+            "bestPrelim": 649,
+            "fightingSpirit": 0
+          },
+          "wins": 329066,
+          "losses": 310564,
+          "appearances": 639630,
+          "prelimWins": 293481,
+          "prelimLosses": 236642,
+          "prelimAppearances": 530123,
+          "decidingWins": 11227
+        },
+        {
+          "name": "石田直裕",
+          "team": "北海道・東北バルペックス",
+          "firstTimer": true,
+          "awards": {
+            "mostWins": 44,
+            "bestWinRate": 16,
+            "mostGames": 170,
+            "bestPrelim": 41,
+            "fightingSpirit": 5505
+          },
+          "wins": 142201,
+          "losses": 307844,
+          "appearances": 450045,
+          "prelimWins": 102328,
+          "prelimLosses": 234429,
+          "prelimAppearances": 336757,
+          "decidingWins": 13141
+        },
+        {
+          "name": "杉本昌隆",
+          "team": "中部トライキングス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 20,
+            "bestWinRate": 9,
+            "mostGames": 60,
+            "bestPrelim": 37,
+            "fightingSpirit": 0
+          },
+          "wins": 103651,
+          "losses": 264270,
+          "appearances": 367921,
+          "prelimWins": 88807,
+          "prelimLosses": 227587,
+          "prelimAppearances": 316394,
+          "decidingWins": 10532
+        },
+        {
+          "name": "青嶋未来",
+          "team": "中部トライキングス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 780,
+            "bestWinRate": 323,
+            "mostGames": 1119,
+            "bestPrelim": 1085,
+            "fightingSpirit": 0
+          },
+          "wins": 220015,
+          "losses": 232886,
+          "appearances": 452901,
+          "prelimWins": 186969,
+          "prelimLosses": 198786,
+          "prelimAppearances": 385755,
+          "decidingWins": 35833
+        },
+        {
+          "name": "服部慎一郎",
+          "team": "中部トライキングス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 612,
+            "bestWinRate": 107,
+            "mostGames": 1459,
+            "bestPrelim": 2127,
+            "fightingSpirit": 0
+          },
+          "wins": 350321,
+          "losses": 250876,
+          "appearances": 601197,
+          "prelimWins": 328494,
+          "prelimLosses": 215138,
+          "prelimAppearances": 543632,
+          "decidingWins": 19338
+        },
+        {
+          "name": "澤田真吾",
+          "team": "中部トライキングス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 192,
+            "bestWinRate": 85,
+            "mostGames": 328,
+            "bestPrelim": 313,
+            "fightingSpirit": 0
+          },
+          "wins": 161177,
+          "losses": 247942,
+          "appearances": 409119,
+          "prelimWins": 137446,
+          "prelimLosses": 212476,
+          "prelimAppearances": 349922,
+          "decidingWins": 21605
+        },
+        {
+          "name": "柵木幹太",
+          "team": "中部トライキングス",
+          "firstTimer": true,
+          "awards": {
+            "mostWins": 176,
+            "bestWinRate": 47,
+            "mostGames": 435,
+            "bestPrelim": 496,
+            "fightingSpirit": 14145
+          },
+          "wins": 235558,
+          "losses": 254642,
+          "appearances": 490200,
+          "prelimWins": 215837,
+          "prelimLosses": 218657,
+          "prelimAppearances": 434494,
+          "decidingWins": 16246
+        },
+        {
+          "name": "糸谷哲郎",
+          "team": "中国・四国ナヴィセトス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 492,
+            "bestWinRate": 1652,
+            "mostGames": 498,
+            "bestPrelim": 212,
+            "fightingSpirit": 0
+          },
+          "wins": 312897,
+          "losses": 234743,
+          "appearances": 547640,
+          "prelimWins": 208026,
+          "prelimLosses": 124828,
+          "prelimAppearances": 332854,
+          "decidingWins": 24817
+        },
+        {
+          "name": "菅井竜也",
+          "team": "中国・四国ナヴィセトス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 413,
+            "bestWinRate": 1480,
+            "mostGames": 453,
+            "bestPrelim": 206,
+            "fightingSpirit": 0
+          },
+          "wins": 309393,
+          "losses": 235955,
+          "appearances": 545348,
+          "prelimWins": 206372,
+          "prelimLosses": 125356,
+          "prelimAppearances": 331728,
+          "decidingWins": 24108
+        },
+        {
+          "name": "藤本渚",
+          "team": "中国・四国ナヴィセトス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 1022,
+            "bestWinRate": 914,
+            "mostGames": 2153,
+            "bestPrelim": 187,
+            "fightingSpirit": 0
+          },
+          "wins": 322620,
+          "losses": 301814,
+          "appearances": 624434,
+          "prelimWins": 163348,
+          "prelimLosses": 208903,
+          "prelimAppearances": 372251,
+          "decidingWins": 50388
+        },
+        {
+          "name": "増田康宏",
+          "team": "中国・四国ナヴィセトス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 3613,
+            "bestWinRate": 8000,
+            "mostGames": 3438,
+            "bestPrelim": 1309,
+            "fightingSpirit": 0
+          },
+          "wins": 453756,
+          "losses": 193432,
+          "appearances": 647188,
+          "prelimWins": 278935,
+          "prelimLosses": 104976,
+          "prelimAppearances": 383911,
+          "decidingWins": 59125
+        },
+        {
+          "name": "吉池隆真",
+          "team": "中国・四国ナヴィセトス",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 1064,
+            "bestWinRate": 2570,
+            "mostGames": 1344,
+            "bestPrelim": 940,
+            "fightingSpirit": 0
+          },
+          "wins": 410344,
+          "losses": 235593,
+          "appearances": 645937,
+          "prelimWins": 306564,
+          "prelimLosses": 125288,
+          "prelimAppearances": 431852,
+          "decidingWins": 124462
+        },
+        {
+          "name": "畠山鎮",
+          "team": "サウスゴッツ大阪",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 25,
+            "bestWinRate": 3,
+            "mostGames": 70,
+            "bestPrelim": 60,
+            "fightingSpirit": 0
+          },
+          "wins": 85197,
+          "losses": 226086,
+          "appearances": 311283,
+          "prelimWins": 81588,
+          "prelimLosses": 220378,
+          "prelimAppearances": 301966,
+          "decidingWins": 7850
+        },
+        {
+          "name": "斎藤慎太郎",
+          "team": "サウスゴッツ大阪",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 97,
+            "bestWinRate": 13,
+            "mostGames": 281,
+            "bestPrelim": 344,
+            "fightingSpirit": 0
+          },
+          "wins": 196997,
+          "losses": 223504,
+          "appearances": 420501,
+          "prelimWins": 192836,
+          "prelimLosses": 217892,
+          "prelimAppearances": 410728,
+          "decidingWins": 9877
+        },
+        {
+          "name": "古森悠太",
+          "team": "サウスゴッツ大阪",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 86,
+            "bestWinRate": 26,
+            "mostGames": 194,
+            "bestPrelim": 163,
+            "fightingSpirit": 0
+          },
+          "wins": 108985,
+          "losses": 221348,
+          "appearances": 330333,
+          "prelimWins": 104297,
+          "prelimLosses": 215807,
+          "prelimAppearances": 320104,
+          "decidingWins": 11726
+        },
+        {
+          "name": "上野裕寿",
+          "team": "サウスゴッツ大阪",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 20,
+            "bestWinRate": 4,
+            "mostGames": 50,
+            "bestPrelim": 33,
+            "fightingSpirit": 0
+          },
+          "wins": 81465,
+          "losses": 226543,
+          "appearances": 308008,
+          "prelimWins": 77837,
+          "prelimLosses": 220813,
+          "prelimAppearances": 298650,
+          "decidingWins": 7264
+        },
+        {
+          "name": "山下数毅",
+          "team": "サウスゴッツ大阪",
+          "firstTimer": true,
+          "awards": {
+            "mostWins": 35,
+            "bestWinRate": 7,
+            "mostGames": 116,
+            "bestPrelim": 84,
+            "fightingSpirit": 3321
+          },
+          "wins": 93457,
+          "losses": 224280,
+          "appearances": 317737,
+          "prelimWins": 89429,
+          "prelimLosses": 218618,
+          "prelimAppearances": 308047,
+          "decidingWins": 9260
+        },
+        {
+          "name": "羽生善治",
+          "team": "北関東ブリッツァーズ",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 125,
+            "bestWinRate": 57,
+            "mostGames": 359,
+            "bestPrelim": 106,
+            "fightingSpirit": 0
+          },
+          "wins": 258186,
+          "losses": 334420,
+          "appearances": 592606,
+          "prelimWins": 164191,
+          "prelimLosses": 205385,
+          "prelimAppearances": 369576,
+          "decidingWins": 15852
+        },
+        {
+          "name": "木村一基",
+          "team": "北関東ブリッツァーズ",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 187,
+            "bestWinRate": 120,
+            "mostGames": 385,
+            "bestPrelim": 65,
+            "fightingSpirit": 0
+          },
+          "wins": 212693,
+          "losses": 313838,
+          "appearances": 526531,
+          "prelimWins": 87366,
+          "prelimLosses": 197111,
+          "prelimAppearances": 284477,
+          "decidingWins": 25727
+        },
+        {
+          "name": "三枚堂達也",
+          "team": "北関東ブリッツァーズ",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 243,
+            "bestWinRate": 165,
+            "mostGames": 448,
+            "bestPrelim": 72,
+            "fightingSpirit": 0
+          },
+          "wins": 217000,
+          "losses": 312228,
+          "appearances": 529228,
+          "prelimWins": 89096,
+          "prelimLosses": 196556,
+          "prelimAppearances": 285652,
+          "decidingWins": 26735
+        },
+        {
+          "name": "藤井聡太",
+          "team": "北関東ブリッツァーズ",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 82252,
+            "bestWinRate": 75091,
+            "mostGames": 74200,
+            "bestPrelim": 78805,
+            "fightingSpirit": 0
+          },
+          "wins": 1030262,
+          "losses": 97488,
+          "appearances": 1127750,
+          "prelimWins": 675577,
+          "prelimLosses": 47496,
+          "prelimAppearances": 723073,
+          "decidingWins": 249943
+        },
+        {
+          "name": "佐藤天彦",
+          "team": "北関東ブリッツァーズ",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 42,
+            "bestWinRate": 41,
+            "mostGames": 100,
+            "bestPrelim": 19,
+            "fightingSpirit": 0
+          },
+          "wins": 161207,
+          "losses": 333399,
+          "appearances": 494606,
+          "prelimWins": 65490,
+          "prelimLosses": 204853,
+          "prelimAppearances": 270343,
+          "decidingWins": 16272
+        },
+        {
+          "name": "谷川浩司",
+          "team": "ノース・トラッズ神戸",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 3,
+            "bestWinRate": 1,
+            "mostGames": 15,
+            "bestPrelim": 5,
+            "fightingSpirit": 0
+          },
+          "wins": 72665,
+          "losses": 253739,
+          "appearances": 326404,
+          "prelimWins": 66052,
+          "prelimLosses": 238419,
+          "prelimAppearances": 304471,
+          "decidingWins": 6052
+        },
+        {
+          "name": "佐藤康光",
+          "team": "ノース・トラッズ神戸",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 131,
+            "bestWinRate": 33,
+            "mostGames": 331,
+            "bestPrelim": 327,
+            "fightingSpirit": 0
+          },
+          "wins": 214259,
+          "losses": 242917,
+          "appearances": 457176,
+          "prelimWins": 204141,
+          "prelimLosses": 228414,
+          "prelimAppearances": 432555,
+          "decidingWins": 12486
+        },
+        {
+          "name": "稲葉陽",
+          "team": "ノース・トラッズ神戸",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 1817,
+            "bestWinRate": 413,
+            "mostGames": 2942,
+            "bestPrelim": 3341,
+            "fightingSpirit": 0
+          },
+          "wins": 314847,
+          "losses": 220694,
+          "appearances": 535541,
+          "prelimWins": 294618,
+          "prelimLosses": 208181,
+          "prelimAppearances": 502799,
+          "decidingWins": 34616
+        },
+        {
+          "name": "豊島将之",
+          "team": "ノース・トラッズ神戸",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 129,
+            "bestWinRate": 48,
+            "mostGames": 277,
+            "bestPrelim": 207,
+            "fightingSpirit": 0
+          },
+          "wins": 135040,
+          "losses": 237846,
+          "appearances": 372886,
+          "prelimWins": 122557,
+          "prelimLosses": 223853,
+          "prelimAppearances": 346410,
+          "decidingWins": 16444
+        },
+        {
+          "name": "山崎隆之",
+          "team": "ノース・トラッズ神戸",
+          "firstTimer": false,
+          "awards": {
+            "mostWins": 165,
+            "bestWinRate": 29,
+            "mostGames": 507,
+            "bestPrelim": 683,
+            "fightingSpirit": 0
+          },
+          "wins": 296417,
+          "losses": 247313,
+          "appearances": 543730,
+          "prelimWins": 287357,
+          "prelimLosses": 232550,
+          "prelimAppearances": 519907,
+          "decidingWins": 9545
+        }
+      ],
+      "fixedAwardStats": [
+        {
+          "name": "森内俊之",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "岩村凛太朗",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "斎藤明日斗",
+          "wins": 2,
+          "losses": 1,
+          "appearances": 3,
+          "prelimWins": 2,
+          "prelimLosses": 1,
+          "prelimAppearances": 3,
+          "decidingWins": 0
+        },
+        {
+          "name": "伊藤匠",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "阿久津主税",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "深浦康市",
+          "wins": 1,
+          "losses": 0,
+          "appearances": 1,
+          "prelimWins": 1,
+          "prelimLosses": 0,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "佐々木大地",
+          "wins": 2,
+          "losses": 0,
+          "appearances": 2,
+          "prelimWins": 2,
+          "prelimLosses": 0,
+          "prelimAppearances": 2,
+          "decidingWins": 1
+        },
+        {
+          "name": "古賀悠聖",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "永瀬拓矢",
+          "wins": 1,
+          "losses": 0,
+          "appearances": 1,
+          "prelimWins": 1,
+          "prelimLosses": 0,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "西田拓也",
+          "wins": 1,
+          "losses": 1,
+          "appearances": 2,
+          "prelimWins": 1,
+          "prelimLosses": 1,
+          "prelimAppearances": 2,
+          "decidingWins": 0
+        },
+        {
+          "name": "屋敷伸之",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "広瀬章人",
+          "wins": 1,
+          "losses": 0,
+          "appearances": 1,
+          "prelimWins": 1,
+          "prelimLosses": 0,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "齊藤優希",
+          "wins": 2,
+          "losses": 0,
+          "appearances": 2,
+          "prelimWins": 2,
+          "prelimLosses": 0,
+          "prelimAppearances": 2,
+          "decidingWins": 1
+        },
+        {
+          "name": "中村太地",
+          "wins": 2,
+          "losses": 1,
+          "appearances": 3,
+          "prelimWins": 2,
+          "prelimLosses": 1,
+          "prelimAppearances": 3,
+          "decidingWins": 0
+        },
+        {
+          "name": "石田直裕",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "杉本昌隆",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "青嶋未来",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "服部慎一郎",
+          "wins": 2,
+          "losses": 1,
+          "appearances": 3,
+          "prelimWins": 2,
+          "prelimLosses": 1,
+          "prelimAppearances": 3,
+          "decidingWins": 0
+        },
+        {
+          "name": "澤田真吾",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "柵木幹太",
+          "wins": 1,
+          "losses": 1,
+          "appearances": 2,
+          "prelimWins": 1,
+          "prelimLosses": 1,
+          "prelimAppearances": 2,
+          "decidingWins": 0
+        },
+        {
+          "name": "糸谷哲郎",
+          "wins": 1,
+          "losses": 0,
+          "appearances": 1,
+          "prelimWins": 1,
+          "prelimLosses": 0,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "菅井竜也",
+          "wins": 1,
+          "losses": 0,
+          "appearances": 1,
+          "prelimWins": 1,
+          "prelimLosses": 0,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "藤本渚",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "増田康宏",
+          "wins": 1,
+          "losses": 0,
+          "appearances": 1,
+          "prelimWins": 1,
+          "prelimLosses": 0,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "吉池隆真",
+          "wins": 2,
+          "losses": 0,
+          "appearances": 2,
+          "prelimWins": 2,
+          "prelimLosses": 0,
+          "prelimAppearances": 2,
+          "decidingWins": 1
+        },
+        {
+          "name": "畠山鎮",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "斎藤慎太郎",
+          "wins": 1,
+          "losses": 1,
+          "appearances": 2,
+          "prelimWins": 1,
+          "prelimLosses": 1,
+          "prelimAppearances": 2,
+          "decidingWins": 0
+        },
+        {
+          "name": "古森悠太",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "上野裕寿",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "山下数毅",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "羽生善治",
+          "wins": 1,
+          "losses": 1,
+          "appearances": 2,
+          "prelimWins": 1,
+          "prelimLosses": 1,
+          "prelimAppearances": 2,
+          "decidingWins": 0
+        },
+        {
+          "name": "木村一基",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "三枚堂達也",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "藤井聡太",
+          "wins": 4,
+          "losses": 0,
+          "appearances": 4,
+          "prelimWins": 4,
+          "prelimLosses": 0,
+          "prelimAppearances": 4,
+          "decidingWins": 1
+        },
+        {
+          "name": "佐藤天彦",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "谷川浩司",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "佐藤康光",
+          "wins": 1,
+          "losses": 1,
+          "appearances": 2,
+          "prelimWins": 1,
+          "prelimLosses": 1,
+          "prelimAppearances": 2,
+          "decidingWins": 0
+        },
+        {
+          "name": "稲葉陽",
+          "wins": 1,
+          "losses": 1,
+          "appearances": 2,
+          "prelimWins": 1,
+          "prelimLosses": 1,
+          "prelimAppearances": 2,
+          "decidingWins": 0
+        },
+        {
+          "name": "豊島将之",
+          "wins": 0,
+          "losses": 1,
+          "appearances": 1,
+          "prelimWins": 0,
+          "prelimLosses": 1,
+          "prelimAppearances": 1,
+          "decidingWins": 0
+        },
+        {
+          "name": "山崎隆之",
+          "wins": 2,
+          "losses": 1,
+          "appearances": 3,
+          "prelimWins": 2,
+          "prelimLosses": 1,
+          "prelimAppearances": 3,
+          "decidingWins": 0
+        }
+      ],
+      "fixedSummary": "\n    <div class=\"regional-fixed-summary\">\n      <strong>固定対局を反映</strong>\n      <span>4カード / 確定30局 / 未定0局を優勝予測全体に固定しています</span>\n      <div>\n        <em>Aリーグ 初戦1: 確定7局 / 未定0局</em><em>Aリーグ 初戦2: 確定8局 / 未定0局</em><em>Bリーグ 初戦1: 確定6局 / 未定0局</em><em>Bリーグ 初戦2: 確定9局 / 未定0局</em>\n      </div>\n    </div>\n  ",
+      "sample": {
+        "aLeague": [
+          {
+            "label": "Aリーグ 初戦1",
+            "teamA": "ルシーグ横浜",
+            "teamB": "九州サザンフェニックス",
+            "score": "2-5",
+            "winner": "九州サザンフェニックス",
+            "fixedGames": 7,
+            "pendingGames": 0
+          },
+          {
+            "label": "Aリーグ 初戦2",
+            "teamA": "北海道・東北バルペックス",
+            "teamB": "中部トライキングス",
+            "score": "5-3",
+            "winner": "北海道・東北バルペックス",
+            "fixedGames": 8,
+            "pendingGames": 0
+          },
+          {
+            "label": "Aリーグ 1位決定戦",
+            "teamA": "九州サザンフェニックス",
+            "teamB": "北海道・東北バルペックス",
+            "score": "5-0",
+            "winner": "九州サザンフェニックス",
+            "fixedGames": 0,
+            "pendingGames": 0
+          },
+          {
+            "label": "Aリーグ 敗者復活戦",
+            "teamA": "ルシーグ横浜",
+            "teamB": "中部トライキングス",
+            "score": "3-5",
+            "winner": "中部トライキングス",
+            "fixedGames": 0,
+            "pendingGames": 0
+          },
+          {
+            "label": "Aリーグ 2位決定戦",
+            "teamA": "北海道・東北バルペックス",
+            "teamB": "中部トライキングス",
+            "score": "1-5",
+            "winner": "中部トライキングス",
+            "fixedGames": 0,
+            "pendingGames": 0
+          }
+        ],
+        "bLeague": [
+          {
+            "label": "Bリーグ 初戦1",
+            "teamA": "中国・四国ナヴィセトス",
+            "teamB": "サウスゴッツ大阪",
+            "score": "5-1",
+            "winner": "中国・四国ナヴィセトス",
+            "fixedGames": 6,
+            "pendingGames": 0
+          },
+          {
+            "label": "Bリーグ 初戦2",
+            "teamA": "北関東ブリッツァーズ",
+            "teamB": "ノース・トラッズ神戸",
+            "score": "5-4",
+            "winner": "北関東ブリッツァーズ",
+            "fixedGames": 9,
+            "pendingGames": 0
+          },
+          {
+            "label": "Bリーグ 1位決定戦",
+            "teamA": "中国・四国ナヴィセトス",
+            "teamB": "北関東ブリッツァーズ",
+            "score": "2-5",
+            "winner": "北関東ブリッツァーズ",
+            "fixedGames": 0,
+            "pendingGames": 0
+          },
+          {
+            "label": "Bリーグ 敗者復活戦",
+            "teamA": "サウスゴッツ大阪",
+            "teamB": "ノース・トラッズ神戸",
+            "score": "5-4",
+            "winner": "サウスゴッツ大阪",
+            "fixedGames": 0,
+            "pendingGames": 0
+          },
+          {
+            "label": "Bリーグ 2位決定戦",
+            "teamA": "中国・四国ナヴィセトス",
+            "teamB": "サウスゴッツ大阪",
+            "score": "5-0",
+            "winner": "中国・四国ナヴィセトス",
+            "fixedGames": 0,
+            "pendingGames": 0
+          }
+        ],
+        "finals": [
+          {
+            "label": "準決勝1 (A1 vs B2)",
+            "teamA": "九州サザンフェニックス",
+            "teamB": "中国・四国ナヴィセトス",
+            "score": "2-5",
+            "winner": "中国・四国ナヴィセトス",
+            "fixedGames": 0,
+            "pendingGames": 0
+          },
+          {
+            "label": "準決勝2 (B1 vs A2)",
+            "teamA": "北関東ブリッツァーズ",
+            "teamB": "中部トライキングス",
+            "score": "5-1",
+            "winner": "北関東ブリッツァーズ",
+            "fixedGames": 0,
+            "pendingGames": 0
+          },
+          {
+            "label": "決勝",
+            "teamA": "中国・四国ナヴィセトス",
+            "teamB": "北関東ブリッツァーズ",
+            "score": "2-5",
+            "winner": "北関東ブリッツァーズ",
+            "fixedGames": 0,
+            "pendingGames": 0
+          }
+        ]
+      },
+      "savedAt": "2026-06-20T15:29:04.640Z"
+    }
+  },
   "ratingFormulaVersion": 2,
-  "savedAt": "2026-05-31T00:24:01.638Z"
+  "savedAt": "2026-06-20T15:29:04.641Z"
 }
