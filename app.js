@@ -2519,8 +2519,10 @@ function getConfirmedSimulationGames(tournament, stage, teamA, teamB) {
     .filter((match) => match.winner === "A" || match.winner === "B" || match.winner === "U");
   const raw = sourceMatches
     .map((match) => {
+      const relevant = isRelevantSimulationMatch(match, teamA, teamB, teamAPlayers, teamBPlayers);
+      if (!relevant) return null;
       const oriented = orientSimulationMatch(match, teamAPlayers, teamBPlayers);
-      if (!oriented && isRelevantSimulationMatch(match, teamA, teamB, teamAPlayers, teamBPlayers)) {
+      if (!oriented) {
         warnings.push(`固定対象局${match.index + 1}: チーム構成外の棋士が含まれています（${match.playerA} vs ${match.playerB}）。`);
       }
       return oriented;
@@ -2563,11 +2565,23 @@ function getConfirmedSimulationGames(tournament, stage, teamA, teamB) {
 }
 
 function isRelevantSimulationMatch(match, teamA, teamB, teamAPlayers, teamBPlayers) {
-  const teams = [match.teamA, match.teamB].map(normalizeName).filter(Boolean);
-  if (teams.includes(teamA.team) || teams.includes(teamB.team)) return true;
+  if (isSimulationMatchBetweenSelectedTeams(match, teamA, teamB, teamAPlayers, teamBPlayers)) return true;
+  return false;
+}
+
+function isSimulationMatchBetweenSelectedTeams(match, teamA, teamB, teamAPlayers, teamBPlayers) {
+  const selectedTeams = [teamA.team, teamB.team].map(normalizeName);
+  const matchTeams = [match.teamA, match.teamB].map(normalizeName);
+  const filledMatchTeams = matchTeams.filter(Boolean);
+  if (filledMatchTeams.length === 2) {
+    return selectedTeams.every((team) => filledMatchTeams.includes(team));
+  }
+  if (filledMatchTeams.length === 1 && !selectedTeams.includes(filledMatchTeams[0])) {
+    return false;
+  }
   const playerA = normalizeName(match.playerA);
   const playerB = normalizeName(match.playerB);
-  return teamAPlayers.has(playerA) || teamAPlayers.has(playerB) || teamBPlayers.has(playerA) || teamBPlayers.has(playerB);
+  return (teamAPlayers.has(playerA) && teamBPlayers.has(playerB)) || (teamAPlayers.has(playerB) && teamBPlayers.has(playerA));
 }
 
 function orientSimulationMatch(match, teamAPlayers, teamBPlayers) {
