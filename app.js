@@ -1902,10 +1902,12 @@ function applyRegionalTeamProgress(playerStats, teamProgress) {
 function addRegionalAwardResult(awardStats, tournament) {
   mergeRegionalAwardTotals(awardStats, tournament.playerStats);
   const awards = chooseRegionalAwardWinners(tournament.playerStats);
-  awards.forEach((winner, key) => {
-    const row = awardStats.get(winner.name);
-    if (!row) return;
-    row.awards[key]++;
+  awards.forEach((winners, key) => {
+    winners.forEach((winner) => {
+      const row = awardStats.get(winner.name);
+      if (!row) return;
+      row.awards[key]++;
+    });
   });
 }
 
@@ -1926,22 +1928,24 @@ function mergeRegionalAwardTotals(awardStats, playerStats) {
 function chooseRegionalAwardWinners(playerStats) {
   const players = [...playerStats.values()];
   return new Map([
-    ["mostWins", chooseRegionalAwardWinner(players, "mostWins")],
-    ["bestWinRate", chooseRegionalAwardWinner(players, "bestWinRate")],
-    ["mostGames", chooseRegionalAwardWinner(players, "mostGames")],
-    ["bestPrelim", chooseRegionalAwardWinner(players, "bestPrelim")],
-    ["fightingSpirit", chooseRegionalAwardWinner(players.filter((row) => isRegionalFirstTimer(row.name)), "fightingSpirit")]
-  ].filter(([, winner]) => winner));
+    ["mostWins", chooseRegionalAwardWinnersForKey(players, "mostWins")],
+    ["bestWinRate", chooseRegionalAwardWinnersForKey(players, "bestWinRate")],
+    ["mostGames", chooseRegionalAwardWinnersForKey(players, "mostGames")],
+    ["bestPrelim", chooseRegionalAwardWinnersForKey(players, "bestPrelim")],
+    ["fightingSpirit", chooseRegionalAwardWinnersForKey(players.filter((row) => isRegionalFirstTimer(row.name)), "fightingSpirit")]
+  ].filter(([, winners]) => winners.length));
 }
 
-function chooseRegionalAwardWinner(players, awardKey) {
+function chooseRegionalAwardWinnersForKey(players, awardKey) {
   const eligible = players.filter((row) => {
     if (awardKey === "bestPrelim") return row.prelimAppearances > 0;
     return row.appearances > 0;
   });
-  if (!eligible.length) return null;
+  if (!eligible.length) return [];
   const compare = regionalAwardComparator(awardKey);
-  return [...eligible].sort(compare)[0];
+  const sorted = [...eligible].sort(compare);
+  const winner = sorted[0];
+  return sorted.filter((row) => compare(row, winner) === 0);
 }
 
 function regionalAwardComparator(awardKey) {
@@ -1953,7 +1957,7 @@ function regionalAwardComparator(awardKey) {
       const diff = value(right) - value(left);
       if (diff) return diff;
     }
-    return left.name.localeCompare(right.name, "ja");
+    return 0;
   };
 }
 
@@ -2212,8 +2216,16 @@ function renderRegionalAwardRows(emptyMessage = "優勝予測実行後に表示�
     });
   const rankedRows = rows
     .slice()
-    .sort((left, right) => right.awardRate - left.awardRate || left.name.localeCompare(right.name, "ja"))
-    .map((row, index) => ({ ...row, awardRank: index + 1 }));
+    .sort((left, right) => right.awardRate - left.awardRate);
+  let currentRank = 0;
+  let previousAwardRate = null;
+  rankedRows.forEach((row, index) => {
+    if (previousAwardRate === null || row.awardRate !== previousAwardRate) {
+      currentRank = index + 1;
+      previousAwardRate = row.awardRate;
+    }
+    row.awardRank = currentRank;
+  });
   resetRegionalAwardSortIfNeeded(columns);
   const sortedRows = sortState.regionalAwards.touched
     ? sortRows(rankedRows, sortState.regionalAwards)
