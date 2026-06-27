@@ -2302,11 +2302,11 @@ function createRegionalAwardPossibilityStats(setup, awardStats, fixedStats) {
   return new Map([...awardStats.values()].map((row) => {
     const fixed = fixedStats.get(row.name) || createEmptyRegionalFixedAwardRow();
     const team = setup.teams.get(row.team);
-    const teamBound = teamBounds.get(row.team) || { teamMatches: 0, prelimMatches: 0, progress: 0 };
-    const maxAppearances = teamBound.teamMatches * 5;
-    const maxPrelimAppearances = teamBound.prelimMatches * 5;
-    const maxWins = Math.max(fixed.wins, maxAppearances - fixed.losses);
-    const maxPrelimWins = Math.max(fixed.prelimWins, maxPrelimAppearances - fixed.prelimLosses);
+    const teamBound = teamBounds.get(row.team) || { remainingTeamMatches: 0, remainingPrelimMatches: 0, progress: 0 };
+    const maxAppearances = fixed.appearances + teamBound.remainingTeamMatches * 5;
+    const maxPrelimAppearances = fixed.prelimAppearances + teamBound.remainingPrelimMatches * 5;
+    const maxWins = fixed.wins + teamBound.remainingTeamMatches * 5;
+    const maxPrelimWins = fixed.prelimWins + teamBound.remainingPrelimMatches * 5;
     return [row.name, {
       name: row.name,
       team: row.team,
@@ -2316,7 +2316,7 @@ function createRegionalAwardPossibilityStats(setup, awardStats, fixedStats) {
       maxWins,
       maxPrelimAppearances,
       maxPrelimWins,
-      maxDecidingWins: teamBound.teamMatches,
+      maxDecidingWins: fixed.decidingWins + teamBound.remainingTeamMatches,
       maxProgress: teamBound.progress,
       inTeam: Boolean(team)
     }];
@@ -2327,6 +2327,8 @@ function createRegionalTeamPossibilityBounds(setup) {
   const bounds = new Map([...setup.teams.keys()].map((team) => [team, {
     teamMatches: 0,
     prelimMatches: 0,
+    remainingTeamMatches: 0,
+    remainingPrelimMatches: 0,
     progress: 0
   }]));
   enumerateRegionalTournamentPossibilities(setup).forEach((outcome) => {
@@ -2337,6 +2339,14 @@ function createRegionalTeamPossibilityBounds(setup) {
     outcome.prelimMatches.forEach((count, team) => {
       const bound = bounds.get(team);
       if (bound) bound.prelimMatches = Math.max(bound.prelimMatches, count);
+    });
+    outcome.remainingTeamMatches.forEach((count, team) => {
+      const bound = bounds.get(team);
+      if (bound) bound.remainingTeamMatches = Math.max(bound.remainingTeamMatches, count);
+    });
+    outcome.remainingPrelimMatches.forEach((count, team) => {
+      const bound = bounds.get(team);
+      if (bound) bound.remainingPrelimMatches = Math.max(bound.remainingPrelimMatches, count);
     });
     outcome.progress.forEach((progress, team) => {
       const bound = bounds.get(team);
@@ -2363,7 +2373,9 @@ function enumerateRegionalTournamentPossibilities(setup) {
             [semifinal1.loser, semifinal2.loser].forEach((team) => progress.set(team.team, Math.max(progress.get(team.team) || 0, 3)));
             progress.set(final.loser.team, Math.max(progress.get(final.loser.team) || 0, 4));
             progress.set(final.winner.team, Math.max(progress.get(final.winner.team) || 0, 5));
-            outcomes.push({ teamMatches, prelimMatches, progress });
+            const remainingTeamMatches = mergeCountMaps(aLeague.remainingTeamMatches, bLeague.remainingTeamMatches, semifinal1.remainingTeamMatches, semifinal2.remainingTeamMatches, final.remainingTeamMatches);
+            const remainingPrelimMatches = mergeCountMaps(aLeague.remainingPrelimMatches, bLeague.remainingPrelimMatches);
+            outcomes.push({ teamMatches, prelimMatches, remainingTeamMatches, remainingPrelimMatches, progress });
           });
         });
       });
@@ -2385,7 +2397,9 @@ function enumerateRegionalLeaguePossibilities(league, matches, setup) {
               second: secondPlaceMatch.winner,
               eliminated: [revivalMatch.loser, secondPlaceMatch.loser],
               teamMatches: mergeCountMaps(firstMatch.teamMatches, secondMatch.teamMatches, firstPlaceMatch.teamMatches, revivalMatch.teamMatches, secondPlaceMatch.teamMatches),
-              prelimMatches: mergeCountMaps(firstMatch.prelimMatches, secondMatch.prelimMatches, firstPlaceMatch.prelimMatches, revivalMatch.prelimMatches, secondPlaceMatch.prelimMatches)
+              prelimMatches: mergeCountMaps(firstMatch.prelimMatches, secondMatch.prelimMatches, firstPlaceMatch.prelimMatches, revivalMatch.prelimMatches, secondPlaceMatch.prelimMatches),
+              remainingTeamMatches: mergeCountMaps(firstMatch.remainingTeamMatches, secondMatch.remainingTeamMatches, firstPlaceMatch.remainingTeamMatches, revivalMatch.remainingTeamMatches, secondPlaceMatch.remainingTeamMatches),
+              remainingPrelimMatches: mergeCountMaps(firstMatch.remainingPrelimMatches, secondMatch.remainingPrelimMatches, firstPlaceMatch.remainingPrelimMatches, revivalMatch.remainingPrelimMatches, secondPlaceMatch.remainingPrelimMatches)
             });
           });
         });
@@ -2403,7 +2417,10 @@ function enumerateRegionalMatchPossibilities(setup, label, teamA, teamB, isPreli
     const loser = side === "A" ? teamB : teamA;
     const teamMatches = incrementCountMap(new Map(), teamA.team, teamB.team);
     const prelimMatches = isPrelim ? incrementCountMap(new Map(), teamA.team, teamB.team) : new Map();
-    return { winner, loser, teamMatches, prelimMatches };
+    const remaining = possibleSides.length > 1;
+    const remainingTeamMatches = remaining ? incrementCountMap(new Map(), teamA.team, teamB.team) : new Map();
+    const remainingPrelimMatches = remaining && isPrelim ? incrementCountMap(new Map(), teamA.team, teamB.team) : new Map();
+    return { winner, loser, teamMatches, prelimMatches, remainingTeamMatches, remainingPrelimMatches };
   });
 }
 
