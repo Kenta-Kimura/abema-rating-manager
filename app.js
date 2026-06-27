@@ -532,14 +532,13 @@ function renderRanking() {
       winRate: decisiveWinRate(player)
     })), sortState.ranking)
     .map((player, index) => {
-      const rate = Math.round(decisiveWinRate(player) * 1000) / 10;
       return `<tr>
         <td><span class="rank">${index + 1}</span></td>
         <td>${escapeHtml(player.name)}</td>
         <td><strong>${player.rating.toFixed(1)}</strong></td>
         <td>${player.deviation.toFixed(1)}</td>
         <td>${player.wins}-${player.losses}-${player.draws}</td>
-        <td>${rate.toFixed(1)}%</td>
+        <td>${formatPercent(decisiveWinRate(player), 1)}</td>
         <td>${formatRankingLastDelta(player)}</td>
       </tr>`;
     });
@@ -676,7 +675,6 @@ function renderTournaments() {
   ].join("");
 
   els.tournamentBody.innerHTML = standings.map((player, index) => {
-    const winRate = (decisiveWinRate(player) * 100).toFixed(1);
     return `<tr>
       <td><span class="rank">${index + 1}</span></td>
       <td>${tournamentPlayerCellHtml(player.name, player.team)}</td>
@@ -686,7 +684,7 @@ function renderTournaments() {
       <td><strong>${player.end.toFixed(1)}</strong></td>
       <td>${formatDelta(player.delta)}</td>
       <td>${player.wins}-${player.losses}-${player.draws}</td>
-      <td>${winRate}%</td>
+      <td>${formatPercent(decisiveWinRate(player), 1)}</td>
     </tr>`;
   }).join("") || emptyRow(9, "この大会の対局がありません");
 
@@ -2297,11 +2295,10 @@ function createEmptyRegionalFixedAwardRow() {
 }
 
 function formatRegionalRate(count, total) {
-  return `${total ? (count / total * 100).toFixed(2) : "0.00"}%`;
+  return total ? formatPercent(count / total, 2) : "0%";
 }
 
 function formatRegionalAwardRate(count, total) {
-  if (!count || !total) return "0%";
   return formatRegionalRate(count, total);
 }
 
@@ -2317,7 +2314,7 @@ function formatRegionalRatio(wins, appearances, total) {
 
 function formatRegionalFixedRatio(wins, appearances) {
   if (!appearances) return "-";
-  return `${(wins / appearances * 100).toFixed(1)}%`;
+  return formatPercent(wins / appearances, 1);
 }
 
 function regionalDisplayName(teamOrName) {
@@ -2379,8 +2376,8 @@ async function runTeamSimulation() {
   const aRate = result.aWins / completed;
   const bRate = result.bWins / completed;
   els.simulationResult.innerHTML = [
-    detailCard(`${setup.teamA.team} 勝率`, `${(aRate * 100).toFixed(2)}%`),
-    detailCard(`${setup.teamB.team} 勝率`, `${(bRate * 100).toFixed(2)}%`),
+    detailCard(`${setup.teamA.team} 勝率`, formatPercent(aRate, 2)),
+    detailCard(`${setup.teamB.team} 勝率`, formatPercent(bRate, 2)),
     detailCard("平均対局数", averageGames.toFixed(2))
   ].join("");
   simulationResultRenderState = { setup, result, total: completed };
@@ -2657,7 +2654,7 @@ function renderSimulationScoreRows(scores, total) {
     return `<tr>
       <td>${escapeHtml(key)}</td>
       <td>${count.toLocaleString("ja-JP")}</td>
-      <td><strong>${total ? ((count / total) * 100).toFixed(2) : "0.00"}%</strong></td>
+      <td><strong>${formatPercent(total ? count / total : 0, 2)}</strong></td>
     </tr>`;
   }).join("") || emptyRow(3, "スコア分布がありません");
 }
@@ -2753,10 +2750,10 @@ function renderSimulationPlayerStatsRows(members, stats, total) {
       <td>${row.appearances.toFixed(2)}</td>
       <td>${row.wins.toFixed(2)}</td>
       <td>${row.losses.toFixed(2)}</td>
-      <td><strong>${(row.winRate * 100).toFixed(1)}%</strong></td>
-      <td>${row.stage1Rate >= 0 ? `${(row.stage1Rate * 100).toFixed(1)}%` : "-"}</td>
+      <td><strong>${formatPercent(row.winRate, 1)}</strong></td>
+      <td>${row.stage1Rate >= 0 ? formatPercent(row.stage1Rate, 1) : "-"}</td>
       <td>${row.stage2Wins.toFixed(2)}</td>
-      <td>${row.stage2Rate >= 0 ? `${(row.stage2Rate * 100).toFixed(1)}%` : "-"}</td>
+      <td>${row.stage2Rate >= 0 ? formatPercent(row.stage2Rate, 1) : "-"}</td>
     </tr>`;
   }).join("") || emptyRow(9, "メンバーがありません");
 }
@@ -2778,7 +2775,6 @@ function renderPlayerDetail() {
   const opponents = computePlayerOpponents(player, playerMatches);
   const tournaments = computePlayerTournaments(player.name, playerMatches);
   const ratingRows = computePlayerRatingRows(player.name, playerMatches);
-  const winRate = (decisiveWinRate(player) * 100).toFixed(1);
   const rank = player.rank ? `${player.rank}位` : "-";
   els.playerDetail.innerHTML = `
     <div class="detail-grid">
@@ -2786,13 +2782,13 @@ function renderPlayerDetail() {
       <div class="detail-card"><span>順位</span><strong>${rank}</strong></div>
       <div class="detail-card"><span>最高レーティング</span><strong>${player.peakRating.toFixed(1)}</strong></div>
       <div class="detail-card"><span>勝敗無</span><strong>${player.wins}-${player.losses}-${player.draws}</strong></div>
-      <div class="detail-card"><span>勝率</span><strong>${winRate}%</strong></div>
+      <div class="detail-card"><span>勝率</span><strong>${formatPercent(decisiveWinRate(player), 1)}</strong></div>
     </div>`;
   els.playerTournamentBody.innerHTML = sortRows(tournaments, sortState.playerTournaments).map((row) => `
     <tr>
       <td>${escapeHtml(row.tournament)}</td>
       <td>${row.wins}-${row.losses}-${row.draws}</td>
-      <td>${(row.winRate * 100).toFixed(1)}%</td>
+      <td>${formatPercent(row.winRate, 1)}</td>
       <td><strong>${row.end.toFixed(1)}</strong></td>
       <td>${formatDelta(row.delta)}</td>
     </tr>
@@ -2800,7 +2796,7 @@ function renderPlayerDetail() {
   els.playerOpponentBody.innerHTML = sortRows(opponents, sortState.playerOpponents).map((row) => `
     <tr>
       <td>${escapeHtml(row.name)}</td>
-      <td><strong>${(row.expected * 100).toFixed(1)}%</strong></td>
+      <td><strong>${formatPercent(row.expected, 1)}</strong></td>
       <td>${row.rating.toFixed(1)}</td>
       <td>${row.wins}-${row.losses}-${row.draws}</td>
     </tr>
@@ -3794,6 +3790,15 @@ function formatDelta(value) {
   return `<span class="${className}">${sign}${number.toFixed(1)}</span>`;
 }
 
+function formatPercent(value, digits = 1) {
+  const percent = Number(value) * 100;
+  if (!Number.isFinite(percent)) return "-";
+  const rounded = Number(percent.toFixed(digits));
+  if (!rounded) return "0%";
+  if (rounded === 100) return "100%";
+  return `${rounded.toFixed(digits)}%`;
+}
+
 function formatRank(value) {
   return Number.isFinite(value) ? `${value}位` : "-";
 }
@@ -3950,7 +3955,7 @@ function senteText(match) {
 function expectedHtml(match) {
   const aRate = isFiniteNumber(match.expectedA) ? Number(match.expectedA) : expectedScore(match.aBefore, match.bBefore);
   const bRate = 1 - aRate;
-  return `${escapeHtml(match.playerA)} ${(aRate * 100).toFixed(1)}% / ${escapeHtml(match.playerB)} ${(bRate * 100).toFixed(1)}%`;
+  return `${escapeHtml(match.playerA)} ${formatPercent(aRate, 1)} / ${escapeHtml(match.playerB)} ${formatPercent(bRate, 1)}`;
 }
 
 function chartDetail(match, opponent, score, before, after, delta) {
