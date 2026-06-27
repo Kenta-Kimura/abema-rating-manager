@@ -1991,7 +1991,7 @@ function renderRegionalForecastResult(stats, awardStats, total, sample, setup) {
   regionalForecastRenderState = { stats, total };
   renderRegionalForecastRows();
   els.regionalForecastFixedSummary.innerHTML = renderRegionalFixedSummary(setup);
-  regionalAwardRenderState = { awardStats, fixedStats: createRegionalFixedAwardStats(setup, awardStats), total };
+  regionalAwardRenderState = { awardStats, fixedStats: createRegionalFixedAwardStats(setup, awardStats), total, setup };
   renderRegionalAwardRows();
   els.regionalForecastSampleLog.innerHTML = renderRegionalSampleBracket(sample);
 }
@@ -2011,7 +2011,8 @@ function renderRegionalForecastCachedResult(setup, cachedResult) {
   regionalAwardRenderState = {
     awardStats,
     fixedStats: deserializeRegionalFixedAwardStats(cachedResult.fixedAwardStats),
-    total: cachedResult.total
+    total: cachedResult.total,
+    setup
   };
   renderRegionalAwardRows();
   els.regionalForecastSampleLog.innerHTML = renderRegionalSampleBracket(cachedResult.sample || []);
@@ -2184,7 +2185,8 @@ function renderRegionalAwardRows(emptyMessage = "優勝予測実行後に表示�
     els.regionalAwardBody.innerHTML = emptyRow(columns.length, emptyMessage);
     return;
   }
-  const { awardStats, fixedStats, total } = regionalAwardRenderState;
+  const { awardStats, fixedStats, total, setup } = regionalAwardRenderState;
+  const possibilityStats = setup ? createRegionalAwardPossibilityStats(setup, awardStats, fixedStats) : new Map();
   const rows = [...awardStats.values()]
     .filter((row) => regionalAwardCurrentKey !== "fightingSpirit" || row.firstTimer)
     .map((row) => {
@@ -2200,6 +2202,7 @@ function renderRegionalAwardRows(emptyMessage = "優勝予測実行後に表示�
         fixed,
         awardCount,
         awardRate: total ? awardCount / total : 0,
+        awardPossible: awardCount > 0 || canRegionalAwardStillOccur(row, regionalAwardCurrentKey, possibilityStats),
         averageWins,
         averageRecord: averageWins - averageLosses,
         averageWinRate: averageAppearances ? averageWins / averageAppearances : -1,
@@ -2243,7 +2246,7 @@ function getRegionalAwardColumns(awardKey) {
   const base = [
     { label: "#", render: (row, fixed, total, awardCount, rank) => `<span class="award-rank">${rank}</span>` },
     { label: "候補", sortKey: "name", render: (row) => `<strong>${escapeHtml(row.name)}</strong><span class="muted-cell">${escapeHtml(regionalDisplayName(row.team))}${row.firstTimer ? " / 初出場" : ""}</span>` },
-    { label: "受賞率", sortKey: "awardRate", render: (row, fixed, total, awardCount) => `<strong>${formatRegionalAwardRate(awardCount, total)}</strong>` }
+    { label: "受賞率", sortKey: "awardRate", render: (row, fixed, total, awardCount) => `<strong>${formatRegionalAwardRate(awardCount, total, row.awardPossible)}</strong>` }
   ];
   if (awardKey === "mostWins") {
     return [
@@ -2294,6 +2297,186 @@ function resetRegionalAwardSortIfNeeded(columns) {
   sortState.regionalAwards.touched = false;
 }
 
+function createRegionalAwardPossibilityStats(setup, awardStats, fixedStats) {
+  const teamBounds = createRegionalTeamPossibilityBounds(setup);
+  return new Map([...awardStats.values()].map((row) => {
+    const fixed = fixedStats.get(row.name) || createEmptyRegionalFixedAwardRow();
+    const team = setup.teams.get(row.team);
+    const teamBound = teamBounds.get(row.team) || { teamMatches: 0, prelimMatches: 0, progress: 0 };
+    const maxAppearances = teamBound.teamMatches * 5;
+    const maxPrelimAppearances = teamBound.prelimMatches * 5;
+    const maxWins = Math.max(fixed.wins, maxAppearances - fixed.losses);
+    const maxPrelimWins = Math.max(fixed.prelimWins, maxPrelimAppearances - fixed.prelimLosses);
+    return [row.name, {
+      name: row.name,
+      team: row.team,
+      firstTimer: row.firstTimer,
+      fixed,
+      maxAppearances,
+      maxWins,
+      maxPrelimAppearances,
+      maxPrelimWins,
+      maxDecidingWins: teamBound.teamMatches,
+      maxProgress: teamBound.progress,
+      inTeam: Boolean(team)
+    }];
+  }));
+}
+
+function createRegionalTeamPossibilityBounds(setup) {
+  const bounds = new Map([...setup.teams.keys()].map((team) => [team, {
+    teamMatches: 0,
+    prelimMatches: 0,
+    progress: 0
+  }]));
+  enumerateRegionalTournamentPossibilities(setup).forEach((outcome) => {
+    outcome.teamMatches.forEach((count, team) => {
+      const bound = bounds.get(team);
+      if (bound) bound.teamMatches = Math.max(bound.teamMatches, count);
+    });
+    outcome.prelimMatches.forEach((count, team) => {
+      const bound = bounds.get(team);
+      if (bound) bound.prelimMatches = Math.max(bound.prelimMatches, count);
+    });
+    outcome.progress.forEach((progress, team) => {
+      const bound = bounds.get(team);
+      if (bound) bound.progress = Math.max(bound.progress, progress);
+    });
+  });
+  return bounds;
+}
+
+function enumerateRegionalTournamentPossibilities(setup) {
+  const aLeagues = enumerateRegionalLeaguePossibilities("A", REGIONAL_2026_BRACKET.A, setup);
+  const bLeagues = enumerateRegionalLeaguePossibilities("B", REGIONAL_2026_BRACKET.B, setup);
+  const outcomes = [];
+  aLeagues.forEach((aLeague) => {
+    bLeagues.forEach((bLeague) => {
+      enumerateRegionalMatchPossibilities(setup, "準決勝1 (A1 vs B2)", aLeague.first, bLeague.second, false).forEach((semifinal1) => {
+        enumerateRegionalMatchPossibilities(setup, "準決勝2 (B1 vs A2)", bLeague.first, aLeague.second, false).forEach((semifinal2) => {
+          enumerateRegionalMatchPossibilities(setup, "決勝", semifinal1.winner, semifinal2.winner, false).forEach((final) => {
+            const teamMatches = mergeCountMaps(aLeague.teamMatches, bLeague.teamMatches, semifinal1.teamMatches, semifinal2.teamMatches, final.teamMatches);
+            const prelimMatches = mergeCountMaps(aLeague.prelimMatches, bLeague.prelimMatches);
+            const progress = new Map();
+            [...aLeague.eliminated, ...bLeague.eliminated].forEach((team) => progress.set(team.team, Math.max(progress.get(team.team) || 0, 1)));
+            [aLeague.first, aLeague.second, bLeague.first, bLeague.second].forEach((team) => progress.set(team.team, Math.max(progress.get(team.team) || 0, 2)));
+            [semifinal1.loser, semifinal2.loser].forEach((team) => progress.set(team.team, Math.max(progress.get(team.team) || 0, 3)));
+            progress.set(final.loser.team, Math.max(progress.get(final.loser.team) || 0, 4));
+            progress.set(final.winner.team, Math.max(progress.get(final.winner.team) || 0, 5));
+            outcomes.push({ teamMatches, prelimMatches, progress });
+          });
+        });
+      });
+    });
+  });
+  return outcomes;
+}
+
+function enumerateRegionalLeaguePossibilities(league, matches, setup) {
+  const team = (name) => setup.teams.get(name);
+  const outcomes = [];
+  enumerateRegionalMatchPossibilities(setup, `${league}リーグ 初戦1`, team(matches[0][0]), team(matches[0][1]), true).forEach((firstMatch) => {
+    enumerateRegionalMatchPossibilities(setup, `${league}リーグ 初戦2`, team(matches[1][0]), team(matches[1][1]), true).forEach((secondMatch) => {
+      enumerateRegionalMatchPossibilities(setup, `${league}リーグ 1位決定戦`, firstMatch.winner, secondMatch.winner, true).forEach((firstPlaceMatch) => {
+        enumerateRegionalMatchPossibilities(setup, `${league}リーグ 敗者復活戦`, firstMatch.loser, secondMatch.loser, true).forEach((revivalMatch) => {
+          enumerateRegionalMatchPossibilities(setup, `${league}リーグ 2位決定戦`, firstPlaceMatch.loser, revivalMatch.winner, true).forEach((secondPlaceMatch) => {
+            outcomes.push({
+              first: firstPlaceMatch.winner,
+              second: secondPlaceMatch.winner,
+              eliminated: [revivalMatch.loser, secondPlaceMatch.loser],
+              teamMatches: mergeCountMaps(firstMatch.teamMatches, secondMatch.teamMatches, firstPlaceMatch.teamMatches, revivalMatch.teamMatches, secondPlaceMatch.teamMatches),
+              prelimMatches: mergeCountMaps(firstMatch.prelimMatches, secondMatch.prelimMatches, firstPlaceMatch.prelimMatches, revivalMatch.prelimMatches, secondPlaceMatch.prelimMatches)
+            });
+          });
+        });
+      });
+    });
+  });
+  return outcomes;
+}
+
+function enumerateRegionalMatchPossibilities(setup, label, teamA, teamB, isPrelim) {
+  if (!teamA || !teamB) return [];
+  const possibleSides = regionalPossibleMatchWinnerSides(setup, label, teamA, teamB);
+  return possibleSides.map((side) => {
+    const winner = side === "A" ? teamA : teamB;
+    const loser = side === "A" ? teamB : teamA;
+    const teamMatches = incrementCountMap(new Map(), teamA.team, teamB.team);
+    const prelimMatches = isPrelim ? incrementCountMap(new Map(), teamA.team, teamB.team) : new Map();
+    return { winner, loser, teamMatches, prelimMatches };
+  });
+}
+
+function regionalPossibleMatchWinnerSides(setup, label, teamA, teamB) {
+  const preparedA = prepareSimulationTeam(teamA, "A");
+  const preparedB = prepareSimulationTeam(teamB, "B");
+  const confirmed = getRegionalConfirmedGames(setup, label, preparedA, preparedB);
+  const aliveA = new Set(preparedA.members.map((member) => member.statKey));
+  const aliveB = new Set(preparedB.members.map((member) => member.statKey));
+  confirmed.games.filter((game) => !game.pending).forEach((game) => {
+    if (game.winner.side === "A") aliveB.delete(game.b.statKey);
+    else aliveA.delete(game.a.statKey);
+  });
+  if (!aliveA.size) return ["B"];
+  if (!aliveB.size) return ["A"];
+  return ["A", "B"];
+}
+
+function incrementCountMap(map, ...keys) {
+  keys.forEach((key) => map.set(key, (map.get(key) || 0) + 1));
+  return map;
+}
+
+function mergeCountMaps(...maps) {
+  const merged = new Map();
+  maps.forEach((map) => {
+    map.forEach((count, key) => merged.set(key, (merged.get(key) || 0) + count));
+  });
+  return merged;
+}
+
+function canRegionalAwardStillOccur(row, awardKey, possibilityStats) {
+  const candidate = possibilityStats.get(row.name);
+  if (!candidate || !candidate.inTeam) return false;
+  if (awardKey === "fightingSpirit" && !candidate.firstTimer) return false;
+  const candidateTuple = regionalAwardMaxTuple(candidate, awardKey);
+  if (!candidateTuple) return false;
+  return [...possibilityStats.values()]
+    .filter((other) => other.name !== candidate.name)
+    .filter((other) => awardKey !== "fightingSpirit" || other.firstTimer)
+    .every((other) => compareRegionalAwardTuple(regionalAwardMinTuple(other.fixed, awardKey), candidateTuple) <= 0);
+}
+
+function regionalAwardMaxTuple(row, awardKey) {
+  const maxWinRate = row.maxAppearances ? row.maxWins / Math.max(1, row.maxWins + row.fixed.losses) : 0;
+  const maxPrelimWinRate = row.maxPrelimAppearances ? row.maxPrelimWins / Math.max(1, row.maxPrelimWins + row.fixed.prelimLosses) : 0;
+  if (awardKey === "bestPrelim") {
+    if (!row.maxPrelimAppearances) return null;
+    return [row.maxPrelimWins, maxPrelimWinRate, row.maxProgress, row.maxDecidingWins];
+  }
+  if (!row.maxAppearances) return null;
+  if (awardKey === "bestWinRate" || awardKey === "fightingSpirit") return [maxWinRate, row.maxWins, row.maxProgress, row.maxDecidingWins];
+  if (awardKey === "mostGames") return [row.maxAppearances, maxWinRate, row.maxProgress, row.maxDecidingWins];
+  return [row.maxWins, maxWinRate, row.maxProgress, row.maxDecidingWins];
+}
+
+function regionalAwardMinTuple(fixed, awardKey) {
+  const winRate = fixed.appearances ? fixed.wins / fixed.appearances : 0;
+  const prelimWinRate = fixed.prelimAppearances ? fixed.prelimWins / fixed.prelimAppearances : 0;
+  if (awardKey === "bestPrelim") return [fixed.prelimWins, prelimWinRate, 0, fixed.decidingWins];
+  if (awardKey === "bestWinRate" || awardKey === "fightingSpirit") return [winRate, fixed.wins, 0, fixed.decidingWins];
+  if (awardKey === "mostGames") return [fixed.appearances, winRate, 0, fixed.decidingWins];
+  return [fixed.wins, winRate, 0, fixed.decidingWins];
+}
+
+function compareRegionalAwardTuple(left, right) {
+  for (let index = 0; index < Math.max(left.length, right.length); index++) {
+    const diff = Number(left[index] || 0) - Number(right[index] || 0);
+    if (Math.abs(diff) > 1e-12) return diff;
+  }
+  return 0;
+}
+
 function createEmptyRegionalFixedAwardRow() {
   return {
     wins: 0,
@@ -2310,7 +2493,8 @@ function formatRegionalRate(count, total) {
   return total ? formatPercent(count / total, 2) : "0%";
 }
 
-function formatRegionalAwardRate(count, total) {
+function formatRegionalAwardRate(count, total, possible = false) {
+  if (!count) return possible ? "<0.01%" : "0%";
   return formatRegionalRate(count, total);
 }
 
