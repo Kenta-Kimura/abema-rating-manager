@@ -91,7 +91,6 @@ const sortState = {
   teamRatings: { key: "average", direction: "desc", touched: false },
   playerTournaments: { key: "order", direction: "asc", touched: false },
   playerOpponents: { key: "rating", direction: "desc", touched: false },
-  playerRatingHistory: { key: "index", direction: "asc", touched: false },
   simulationPlayerStats: { key: "wins", direction: "desc", touched: false },
   regionalForecast: { key: "champion", direction: "desc", touched: false },
   regionalAwards: { key: "awardRate", direction: "desc", touched: false },
@@ -152,7 +151,6 @@ const els = {
   playerDetail: document.querySelector("#playerDetail"),
   playerTournamentBody: document.querySelector("#playerTournamentBody"),
   playerOpponentBody: document.querySelector("#playerOpponentBody"),
-  playerRatingHistoryBody: document.querySelector("#playerRatingHistoryBody"),
   renameTournamentForm: document.querySelector("#renameTournamentForm"),
   renameTournamentButton: document.querySelector("#renameTournamentButton"),
   teamMetaBody: document.querySelector("#teamMetaBody"),
@@ -2989,13 +2987,11 @@ function renderPlayerDetail() {
     els.playerDetail.innerHTML = "<p>棋士を選択してください。</p>";
     els.playerTournamentBody.innerHTML = emptyRow(5, "棋士を選択してください");
     els.playerOpponentBody.innerHTML = emptyRow(4, "棋士を選択してください");
-    els.playerRatingHistoryBody.innerHTML = emptyRow(5, "棋士を選択してください");
     return;
   }
   const playerMatches = computed.history.filter((match) => match.playerA === player.name || match.playerB === player.name);
   const opponents = computePlayerOpponents(player, playerMatches);
   const tournaments = computePlayerTournaments(player.name, playerMatches);
-  const ratingRows = computePlayerRatingRows(player.name, playerMatches);
   const rank = player.rank ? `${player.rank}位` : "-";
   els.playerDetail.innerHTML = `
     <div class="detail-grid">
@@ -3022,15 +3018,6 @@ function renderPlayerDetail() {
       <td>${row.wins}-${row.losses}-${row.draws}</td>
     </tr>
   `).join("") || emptyRow(4, "対戦相手がありません");
-  els.playerRatingHistoryBody.innerHTML = sortRows(ratingRows, sortState.playerRatingHistory).map((row) => `
-    <tr>
-      <td>${row.index}</td>
-      <td>${escapeHtml(row.tournament)}</td>
-      <td>${escapeHtml(formatStageLabel(row.stage))}</td>
-      <td><strong>${row.rating.toFixed(1)}</strong></td>
-      <td>${formatDelta(row.delta)}</td>
-    </tr>
-  `).join("") || emptyRow(5, "レーティング推移がありません");
 }
 
 function computePlayerOpponents(player, matches) {
@@ -3108,32 +3095,6 @@ function computePlayerTournaments(playerName, matches) {
     row.record = row.wins - row.losses;
   });
   return [...tournaments.values()];
-}
-
-function computePlayerRatingRows(playerName, matches) {
-  const rows = new Map();
-  matches.forEach((match) => {
-    if (match.winner === "U") return;
-    const isA = match.playerA === playerName;
-    const tournament = match.tournament || "未分類";
-    if (!rows.has(tournament)) {
-      rows.set(tournament, {
-        tournament,
-        start: isA ? Number(match.aBefore) : Number(match.bBefore),
-        stage: "",
-        rating: 0,
-        delta: 0
-      });
-    }
-    const row = rows.get(tournament);
-    row.stage = match.stage || "";
-    row.rating = isA ? Number(match.aAfter) : Number(match.bAfter);
-    row.delta = Math.round((row.rating - row.start) * 10) / 10;
-  });
-  return [...rows.values()].map((row, index) => ({
-    ...row,
-    index: index + 1
-  }));
 }
 
 function drawChart() {
@@ -4069,7 +4030,6 @@ function updateSort(header) {
   regionalAwardBody: "regionalAwards",
   playerTournamentBody: "playerTournaments",
   playerOpponentBody: "playerOpponents",
-  playerRatingHistoryBody: "playerRatingHistory",
   teamMetaBody: "teamMeta"
   }[body?.id];
   if (!tableName) return;
