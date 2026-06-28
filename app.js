@@ -2520,8 +2520,7 @@ function formatRegionalAwardRate(count, total, possible = false) {
 
 function regionalAwardRateRankKey(count, total, possible = false) {
   if (!count) return possible ? 0.000001 : 0;
-  const rate = total ? count / total : 0;
-  return rate < 0.0001 ? 0.000001 : rate;
+  return total ? count / total : 0;
 }
 
 function formatRegionalAverage(value, count) {
