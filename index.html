@@ -445,9 +445,10 @@
           </section>
           <section class="panel import-panel">
             <h3>外部データファイル</h3>
-            <p>表示はブラウザ内のローカルストレージを使います。別の環境でも同じ内容を表示したい場合は、同じフォルダの <code>abema-rating-data.json</code> を読み込み・保存してください。このファイルはローカルサーバー起動時に自動読み込みします。ファイルを直接開いた場合は、必要に応じて下のボタンからJSONを開いてください。</p>
+            <p>表示はブラウザ内のローカルストレージを使います。ローカルサーバー起動時は同じフォルダの <code>abema-rating-data.json</code> を確認しますが、起動後に外部ファイルを変更しても画面へは自動反映されません。最新の外部データを反映する場合は「外部JSONを再読み込み」を押してください。ファイルを直接開いた場合は、必要に応じて下のボタンからJSONを開いてください。</p>
             <div class="button-row">
               <button id="openExternalFileButton">外部JSONを開く</button>
+              <button id="reloadExternalFileButton">外部JSONを再読み込み</button>
               <button id="saveExternalFileButton" class="primary">外部JSONへ保存</button>
             </div>
             <p id="externalFileStatus" class="status-text">未接続 / 最終更新: -</p>

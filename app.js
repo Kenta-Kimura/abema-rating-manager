@@ -140,6 +140,7 @@ const els = {
   pasteArea: document.querySelector("#pasteArea"),
   importPasteButton: document.querySelector("#importPasteButton"),
   openExternalFileButton: document.querySelector("#openExternalFileButton"),
+  reloadExternalFileButton: document.querySelector("#reloadExternalFileButton"),
   saveExternalFileButton: document.querySelector("#saveExternalFileButton"),
   externalFileStatus: document.querySelector("#externalFileStatus"),
   exportCsvButton: document.querySelector("#exportCsvButton"),
@@ -234,6 +235,7 @@ els.clearMatchesButton.addEventListener("click", clearMatches);
 els.fileInput.addEventListener("change", importFile);
 els.importPasteButton.addEventListener("click", importPastedCsv);
 els.openExternalFileButton.addEventListener("click", openExternalFile);
+els.reloadExternalFileButton.addEventListener("click", reloadExternalFile);
 els.saveExternalFileButton.addEventListener("click", saveExternalFile);
 els.renameTournamentButton.addEventListener("click", renameTournament);
 els.exportCsvButton.addEventListener("click", exportCsv);
@@ -3769,28 +3771,52 @@ async function openExternalFile() {
   }
 }
 
-async function loadDefaultExternalFile() {
+async function reloadExternalFile() {
+  try {
+    if (externalFileHandle && "getFile" in externalFileHandle) {
+      const file = await externalFileHandle.getFile();
+      const parsed = JSON.parse(await file.text());
+      applyExternalState(parsed);
+      updateExternalStatus(`${file.name} を再読み込み済み`, parsed.savedAt || file.lastModified);
+      showToast("外部JSONを再読み込みしました");
+      return;
+    }
+    const loaded = await loadDefaultExternalFile({ force: true });
+    if (loaded) {
+      showToast("外部JSONを再読み込みしました");
+    } else {
+      showToast("再読み込みできる外部JSONが見つかりませんでした");
+    }
+  } catch (error) {
+    console.error(error);
+    showToast("外部JSONを再読み込みできませんでした");
+  }
+}
+
+async function loadDefaultExternalFile({ force = false } = {}) {
   if (window.location.protocol === "file:") {
     updateExternalStatus("ファイル直開き中。既定JSONの自動読み込みにはローカルサーバーを使うか、外部JSONを開いてください");
-    return;
+    return false;
   }
   try {
     const response = await fetch(DEFAULT_EXTERNAL_JSON, { cache: "no-store" });
     if (!response.ok) {
       updateExternalStatus("既定JSONなし");
-      return;
+      return false;
     }
     const parsed = await response.json();
     const externalTime = Date.parse(parsed.savedAt || "");
     const localTime = Date.parse(state.savedAt || "");
-    if (!Number.isFinite(localTime) || (Number.isFinite(externalTime) && externalTime > localTime)) {
+    if (force || !Number.isFinite(localTime) || (Number.isFinite(externalTime) && externalTime > localTime)) {
       applyExternalState(parsed);
-      updateExternalStatus("既定JSONを読み込み済み", parsed.savedAt);
-      return;
+      updateExternalStatus(force ? "既定JSONを再読み込み済み" : "既定JSONを読み込み済み", parsed.savedAt);
+      return true;
     }
     updateExternalStatus("ローカルキャッシュを使用中", state.savedAt);
+    return false;
   } catch {
     updateExternalStatus("既定JSONなし");
+    return false;
   }
 }
 
