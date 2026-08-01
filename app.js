@@ -2,6 +2,7 @@ const STORAGE_KEY = "abema-elo-state-v1";
 const DEFAULT_EXTERNAL_JSON_NAME = "abema-rating-data.json";
 const DEFAULT_EXTERNAL_JSON = `./${DEFAULT_EXTERNAL_JSON_NAME}`;
 const FIXED_SIMULATION_COUNT = 100000;
+const ALL_SIMULATION_LEAGUES = "__all__";
 const REGIONAL_FORECAST_CACHE_VERSION = 1;
 const SEARCHABLE_VIEWS = new Set(["dashboard", "tournaments", "matches"]);
 const REGIONAL_2026_TOURNAMENT = "地域2026";
@@ -244,7 +245,10 @@ els.simulationTournamentSelect.addEventListener("change", () => {
   renderSimulationControls();
   renderSimulationPreview();
 });
-els.simulationStageSelect.addEventListener("change", renderSimulationPreview);
+els.simulationStageSelect.addEventListener("change", () => {
+  renderSimulationControls();
+  renderSimulationPreview();
+});
 els.simulationLeagueSelect.addEventListener("change", () => {
   renderSimulationControls();
   renderSimulationPreview();
@@ -1078,20 +1082,26 @@ function renderSimulationControls() {
   els.simulationStageSelect.value = stage;
 
   const tournamentGroups = groups.filter((group) => group.tournament === tournament);
-  const leagues = uniqueInOrder(tournamentGroups.map((group) => group.league || "未設定"));
+  const isFinalTournament = isFinalTournamentSimulationStage(stage);
+  const leagues = isFinalTournament
+    ? [ALL_SIMULATION_LEAGUES]
+    : uniqueInOrder(tournamentGroups.map((group) => group.league || "未設定"));
   const previousLeague = els.simulationLeagueSelect.value;
   const league = leagues.includes(previousLeague) ? previousLeague : (leagues[0] || "");
-  els.simulationLeagueSelect.innerHTML = leagues.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("") || '<option value="">未登録</option>';
+  els.simulationLeagueSelect.innerHTML = leagues.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name === ALL_SIMULATION_LEAGUES ? "全リーグ（決勝トーナメント）" : name)}</option>`).join("") || '<option value="">未登録</option>';
   els.simulationLeagueSelect.value = league;
 
-  const teamGroups = tournamentGroups.filter((group) => (group.league || "未設定") === league);
+  const teamGroups = tournamentGroups.filter((group) => league === ALL_SIMULATION_LEAGUES || (group.league || "未設定") === league);
   const teamIdsA = [...teamGroups.map((group) => group.id), "custom::A"];
   const teamIdsB = [...teamGroups.map((group) => group.id), "custom::B"];
   const previousA = els.simulationTeamASelect.value;
   const previousB = els.simulationTeamBSelect.value;
   const teamA = teamIdsA.includes(previousA) ? previousA : (teamIdsA[0] || "");
   const teamB = teamIdsB.includes(previousB) ? previousB : (teamIdsB.find((team) => team !== teamA) || teamA || "");
-  const realOptions = teamGroups.map((group) => `<option value="${escapeAttr(group.id)}">${escapeHtml(group.team)}</option>`).join("");
+  const realOptions = teamGroups.map((group) => {
+    const label = league === ALL_SIMULATION_LEAGUES ? `${group.team}（${group.league}）` : group.team;
+    return `<option value="${escapeAttr(group.id)}">${escapeHtml(label)}</option>`;
+  }).join("");
   els.simulationTeamASelect.innerHTML = `${realOptions}<option value="custom::A">カスタムチームA</option>`;
   els.simulationTeamBSelect.innerHTML = `${realOptions}<option value="custom::B">カスタムチームB</option>`;
   els.simulationTeamASelect.value = teamA;
@@ -1154,7 +1164,9 @@ function getSimulationSetup() {
   const findGroup = (id) => {
     if (id === "custom::A") return getCustomSimulationTeam("A", tournament, league);
     if (id === "custom::B") return getCustomSimulationTeam("B", tournament, league);
-    return groups.find((group) => group.id === id && group.tournament === tournament && (group.league || "未設定") === league);
+    return groups.find((group) => group.id === id
+      && group.tournament === tournament
+      && (league === ALL_SIMULATION_LEAGUES || (group.league || "未設定") === league));
   };
   const teamA = prepareSimulationTeam(findGroup(teamAId), "A");
   const teamB = prepareSimulationTeam(findGroup(teamBId), "B");
@@ -1427,6 +1439,17 @@ function getSimulationStageFilter(value) {
   }
   if (value.startsWith("stage:")) return value.slice("stage:".length);
   return value;
+}
+
+function isFinalTournamentSimulationStage(value) {
+  if (!value) return false;
+  const stage = value.startsWith("group:")
+    ? value.slice("group:".length)
+    : value.startsWith("stage:")
+      ? value.slice("stage:".length)
+      : value;
+  const parsed = parseMatchStage(stage);
+  return parsed.valid ? parsed.phase === "本選" : normalizeName(stage).includes("決勝");
 }
 
 function simulationStageGroup(stage) {
