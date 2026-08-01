@@ -132,12 +132,11 @@
               </div>
               <form id="simulationForm" class="simulation-form">
                 <label class="field-label">大会<select name="tournament" id="simulationTournamentSelect"></select></label>
-                <label class="field-label">試合<select name="stage" id="simulationStageSelect"></select></label>
                 <label class="field-label">リーグ<select name="league" id="simulationLeagueSelect"></select></label>
                 <label class="field-label">チームA<select name="teamA" id="simulationTeamASelect"></select></label>
                 <label class="field-label">チームB<select name="teamB" id="simulationTeamBSelect"></select></label>
               </form>
-              <p class="status-text">「試合」は登録済み対局の固定範囲です。指定なしでは選択した2チーム間の全対局、試合を選ぶとその試合だけを反映します。未登録の試合は固定せず自由にシミュレーションします。</p>
+              <p class="status-text">選択した2チームの最新の進行中対戦に登録済みの対局を、すべて自動反映します。以前の対戦が決着済みの場合は、予選と決勝などの再戦として新しい対戦をシミュレーションします。</p>
               <div class="custom-simulation-teams">
                 <div class="custom-team-box" id="customTeamABox">
                   <div class="custom-team-head">
