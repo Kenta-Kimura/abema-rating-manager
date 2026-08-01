@@ -37,6 +37,11 @@ const MATCH_STAGE_MATCHES = [
   { value: "5", label: "2位決定戦" }
 ];
 const MATCH_STAGE_GAMES = Array.from({ length: 9 }, (_, index) => String(index + 1));
+const FINAL_TOURNAMENT_SIMULATION_STAGES = [
+  "本選 リーグ準 1組",
+  "本選 リーグ準 2組",
+  "本選 リーグ決"
+];
 const REGIONAL_STAGE_PREFIXES = {
   "Aリーグ 初戦1": "予選 リーグA 1組",
   "Aリーグ 初戦2": "予選 リーグA 2組",
@@ -1423,12 +1428,18 @@ function getSimulationStageOptions(tournament) {
     .filter((match) => (match.tournament || "未分類") === tournament && match.playerB !== "__基準__")
     .map((match) => match.stage || "未分類")
     .filter(Boolean));
-  return stages.map((stage) => {
+  const registeredOptions = stages.map((stage) => {
     const group = simulationStageGroup(stage);
     return group
       ? { value: `group:${group}`, label: simulationStageGroupLabel(group) }
       : { value: `stage:${stage}`, label: formatStageLabel(stage) };
-  }).filter((option, index, options) => options.findIndex((item) => item.value === option.value) === index);
+  });
+  const finalTournamentOptions = FINAL_TOURNAMENT_SIMULATION_STAGES.map((group) => ({
+    value: `group:${group}`,
+    label: simulationStageGroupLabel(group)
+  }));
+  return [...registeredOptions, ...finalTournamentOptions]
+    .filter((option, index, options) => options.findIndex((item) => item.value === option.value) === index);
 }
 
 function getSimulationStageFilter(value) {
