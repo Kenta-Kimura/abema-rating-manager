@@ -2,6 +2,7 @@ const STORAGE_KEY = "abema-elo-state-v1";
 const DEFAULT_EXTERNAL_JSON_NAME = "abema-rating-data.json";
 const DEFAULT_EXTERNAL_JSON = `./${DEFAULT_EXTERNAL_JSON_NAME}`;
 const FIXED_SIMULATION_COUNT = 100000;
+const ALL_SIMULATION_LEAGUES = "__all__";
 const REGIONAL_FORECAST_CACHE_VERSION = 1;
 const SEARCHABLE_VIEWS = new Set(["dashboard", "tournaments", "matches"]);
 const REGIONAL_2026_TOURNAMENT = "地域2026";
@@ -157,7 +158,6 @@ const els = {
   teamMetaBody: document.querySelector("#teamMetaBody"),
   simulationForm: document.querySelector("#simulationForm"),
   simulationTournamentSelect: document.querySelector("#simulationTournamentSelect"),
-  simulationStageSelect: document.querySelector("#simulationStageSelect"),
   simulationLeagueSelect: document.querySelector("#simulationLeagueSelect"),
   simulationTeamASelect: document.querySelector("#simulationTeamASelect"),
   simulationTeamBSelect: document.querySelector("#simulationTeamBSelect"),
@@ -244,7 +244,6 @@ els.simulationTournamentSelect.addEventListener("change", () => {
   renderSimulationControls();
   renderSimulationPreview();
 });
-els.simulationStageSelect.addEventListener("change", renderSimulationPreview);
 els.simulationLeagueSelect.addEventListener("change", () => {
   renderSimulationControls();
   renderSimulationPreview();
@@ -1068,30 +1067,27 @@ function renderSimulationControls() {
   els.simulationTournamentSelect.innerHTML = tournaments.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("") || '<option value="">未登録</option>';
   els.simulationTournamentSelect.value = tournament;
 
-  const stages = getSimulationStageOptions(tournament);
-  const previousStage = els.simulationStageSelect.value;
-  const stage = stages.some((option) => option.value === previousStage) ? previousStage : "";
-  els.simulationStageSelect.innerHTML = [
-    '<option value="">指定なし</option>',
-    ...stages.map((option) => `<option value="${escapeAttr(option.value)}">${escapeHtml(option.label)}</option>`)
-  ].join("");
-  els.simulationStageSelect.value = stage;
-
   const tournamentGroups = groups.filter((group) => group.tournament === tournament);
-  const leagues = uniqueInOrder(tournamentGroups.map((group) => group.league || "未設定"));
+  const leagues = [
+    ALL_SIMULATION_LEAGUES,
+    ...uniqueInOrder(tournamentGroups.map((group) => group.league || "未設定"))
+  ];
   const previousLeague = els.simulationLeagueSelect.value;
   const league = leagues.includes(previousLeague) ? previousLeague : (leagues[0] || "");
-  els.simulationLeagueSelect.innerHTML = leagues.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("") || '<option value="">未登録</option>';
+  els.simulationLeagueSelect.innerHTML = leagues.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name === ALL_SIMULATION_LEAGUES ? "全リーグ（決勝トーナメント）" : name)}</option>`).join("") || '<option value="">未登録</option>';
   els.simulationLeagueSelect.value = league;
 
-  const teamGroups = tournamentGroups.filter((group) => (group.league || "未設定") === league);
+  const teamGroups = tournamentGroups.filter((group) => league === ALL_SIMULATION_LEAGUES || (group.league || "未設定") === league);
   const teamIdsA = [...teamGroups.map((group) => group.id), "custom::A"];
   const teamIdsB = [...teamGroups.map((group) => group.id), "custom::B"];
   const previousA = els.simulationTeamASelect.value;
   const previousB = els.simulationTeamBSelect.value;
   const teamA = teamIdsA.includes(previousA) ? previousA : (teamIdsA[0] || "");
   const teamB = teamIdsB.includes(previousB) ? previousB : (teamIdsB.find((team) => team !== teamA) || teamA || "");
-  const realOptions = teamGroups.map((group) => `<option value="${escapeAttr(group.id)}">${escapeHtml(group.team)}</option>`).join("");
+  const realOptions = teamGroups.map((group) => {
+    const label = league === ALL_SIMULATION_LEAGUES ? `${group.team}（${group.league}）` : group.team;
+    return `<option value="${escapeAttr(group.id)}">${escapeHtml(label)}</option>`;
+  }).join("");
   els.simulationTeamASelect.innerHTML = `${realOptions}<option value="custom::A">カスタムチームA</option>`;
   els.simulationTeamBSelect.innerHTML = `${realOptions}<option value="custom::B">カスタムチームB</option>`;
   els.simulationTeamASelect.value = teamA;
@@ -1147,14 +1143,15 @@ function renderSimulationConfirmedRows(games = []) {
 function getSimulationSetup() {
   const groups = getSimulationTeamGroups();
   const tournament = els.simulationTournamentSelect.value;
-  const stage = els.simulationStageSelect.value;
   const league = els.simulationLeagueSelect.value;
   const teamAId = els.simulationTeamASelect.value;
   const teamBId = els.simulationTeamBSelect.value;
   const findGroup = (id) => {
     if (id === "custom::A") return getCustomSimulationTeam("A", tournament, league);
     if (id === "custom::B") return getCustomSimulationTeam("B", tournament, league);
-    return groups.find((group) => group.id === id && group.tournament === tournament && (group.league || "未設定") === league);
+    return groups.find((group) => group.id === id
+      && group.tournament === tournament
+      && (league === ALL_SIMULATION_LEAGUES || (group.league || "未設定") === league));
   };
   const teamA = prepareSimulationTeam(findGroup(teamAId), "A");
   const teamB = prepareSimulationTeam(findGroup(teamBId), "B");
@@ -1162,9 +1159,8 @@ function getSimulationSetup() {
     ...validateSimulationTeam(teamA, "チームA"),
     ...validateSimulationTeam(teamB, "チームB")
   ];
-  const stageFilter = getSimulationStageFilter(stage);
-  const confirmed = teamA && teamB ? getConfirmedSimulationGames(tournament, stageFilter, teamA, teamB) : { games: [], warnings: [] };
-  return { tournament, stage, league, teamA, teamB, confirmed, warnings };
+  const confirmed = teamA && teamB ? getConfirmedSimulationGames(tournament, teamA, teamB) : { games: [], warnings: [] };
+  return { tournament, league, teamA, teamB, confirmed, warnings };
 }
 
 function registerCustomTeamInput(input) {
@@ -1404,29 +1400,6 @@ function getSimulationCount(input) {
 
 function getRegionalForecastCount() {
   return getSimulationCount(els.regionalForecastCountInput);
-}
-
-function getSimulationStageOptions(tournament) {
-  const stages = uniqueInOrder(computed.history
-    .filter((match) => (match.tournament || "未分類") === tournament && match.playerB !== "__基準__")
-    .map((match) => match.stage || "未分類")
-    .filter(Boolean));
-  return stages.map((stage) => {
-    const group = simulationStageGroup(stage);
-    return group
-      ? { value: `group:${group}`, label: simulationStageGroupLabel(group) }
-      : { value: `stage:${stage}`, label: formatStageLabel(stage) };
-  }).filter((option, index, options) => options.findIndex((item) => item.value === option.value) === index);
-}
-
-function getSimulationStageFilter(value) {
-  if (!value) return "";
-  if (value.startsWith("group:")) {
-    const prefix = value.slice("group:".length);
-    return (stage) => isStageInPrefix(stage, prefix);
-  }
-  if (value.startsWith("stage:")) return value.slice("stage:".length);
-  return value;
 }
 
 function simulationStageGroup(stage) {
@@ -1817,7 +1790,10 @@ function getRegionalConfirmedGames(setup, label, teamA, teamB) {
   if (!setup.confirmedCache.has(key)) {
     const stagePrefix = REGIONAL_STAGE_PREFIXES[label] || "";
     setup.confirmedCache.set(key, stagePrefix
-      ? getConfirmedSimulationGames(REGIONAL_2026_TOURNAMENT, (stage) => isStageInPrefix(stage, stagePrefix), teamA, teamB)
+      ? getConfirmedSimulationGames(REGIONAL_2026_TOURNAMENT, teamA, teamB, {
+        stageFilter: (stage) => isStageInPrefix(stage, stagePrefix),
+        resetCompleted: false
+      })
       : { games: [], warnings: [] });
   }
   return setup.confirmedCache.get(key);
@@ -2722,23 +2698,26 @@ function simulateTeamMatch(teamA, teamB, fixedGames = [], keepLog = false) {
   return { winner, games, log, playerStats, scoreA, scoreB };
 }
 
-function getConfirmedSimulationGames(tournament, stage, teamA, teamB) {
+function getConfirmedSimulationGames(tournament, teamA, teamB, options = {}) {
   if (teamA.team === teamB.team || teamA.source === "custom" || teamB.source === "custom") return { games: [], warnings: [] };
   const teamAPlayers = new Map(teamA.members.map((member) => [member.name, member]));
   const teamBPlayers = new Map(teamB.members.map((member) => [member.name, member]));
   const warnings = [];
-  const sourceMatches = computed.history
+  const relevantMatches = computed.history
     .filter((match) => (match.tournament || "未分類") === tournament && match.playerB !== "__基準__")
-    .filter((match) => {
-      if (!stage) return true;
-      const matchStage = match.stage || "未分類";
-      return typeof stage === "function" ? stage(matchStage) : matchStage === stage;
-    })
-    .filter((match) => match.winner === "A" || match.winner === "B" || match.winner === "U");
+    .filter((match) => match.winner === "A" || match.winner === "B" || match.winner === "U")
+    .filter((match) => !options.stageFilter || options.stageFilter(match.stage || "未分類"))
+    .filter((match) => isRelevantSimulationMatch(match, teamA, teamB, teamAPlayers, teamBPlayers));
+  const latestEncounterKey = relevantMatches.length
+    ? simulationEncounterKey(relevantMatches[relevantMatches.length - 1])
+    : "";
+  const sourceMatches = options.stageFilter
+    ? relevantMatches
+    : latestEncounterKey
+    ? relevantMatches.filter((match) => simulationEncounterKey(match) === latestEncounterKey)
+    : [];
   const raw = sourceMatches
     .map((match) => {
-      const relevant = isRelevantSimulationMatch(match, teamA, teamB, teamAPlayers, teamBPlayers);
-      if (!relevant) return null;
       const oriented = orientSimulationMatch(match, teamAPlayers, teamBPlayers);
       if (!oriented) {
         warnings.push(`固定対象局${match.index + 1}: チーム構成外の棋士が含まれています（${match.playerA} vs ${match.playerB}）。`);
@@ -2779,7 +2758,14 @@ function getConfirmedSimulationGames(tournament, stage, teamA, teamB) {
       stageLabel: stageNumber === 1 ? `ステージ1 第${stage1Count}局` : "ステージ2"
     };
   });
-  return { games, warnings };
+  const completed = !alive.A.size || !alive.B.size;
+  return completed && options.resetCompleted !== false ? { games: [], warnings: [] } : { games, warnings };
+}
+
+function simulationEncounterKey(match) {
+  const group = simulationStageGroup(match.stage || "");
+  if (group) return group;
+  return normalizeName(match.stage || "未分類").replace(/\s*(?:第)?\d+局$/, "") || "未分類";
 }
 
 function isRelevantSimulationMatch(match, teamA, teamB, teamAPlayers, teamBPlayers) {
